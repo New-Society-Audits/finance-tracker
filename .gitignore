@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+
+# uv
+.python-version
+
+# Environment variables (never commit secrets or API keys)
+.env
+.env.*
+!.env.example
+
+# SQLite database (your local data, not code)
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploaded files (receipts, bank statements)
+uploads/
+
+# JavaScript / pnpm
+node_modules/
+.pnpm-store/
+
+# Project planning docs (local reference only)
+PLAN.md
+PROJECT.md
+TECH_STACK.md
+
+# macOS
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+*.swp
