@@ -50,6 +50,9 @@
         </div>
 
         <ul class="expense-list">
+          {% if not expenses %}
+          <li class="empty-state">No expenses yet. Hit + to add one.</li>
+          {% endif %}
           {% for expense in expenses %}
           <li class="expense-item">
             <details class="expense-details">
@@ -67,7 +70,7 @@
                   <select class="category-select">
                     <option value="">— select —</option>
                     {% for cat in categories %}
-                    <option value="{{ cat }}">{{ cat }}</option>
+                    <option value="{{ cat }}" {% if cat == expense.category %}selected{% endif %}>{{ cat }}</option>
                     {% endfor %}
                   </select>
                 </div>

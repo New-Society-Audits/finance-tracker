@@ -141,6 +141,13 @@ body {
   flex: 1;
 }
 
+.empty-state {
+  padding: 40px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: #bbb;
+}
+
 .expense-item {
   border-bottom: 1px solid #f2f2f2;
 }
