@@ -6,6 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import uvicorn
 
 from app.auth import router as auth_router
+from app.dashboard import router as dashboard_router
 from app.database import init_db
 
 SECRET_KEY = "change-this-before-deploying"
@@ -21,11 +22,7 @@ app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 app.include_router(auth_router)
-
-
-@app.get("/")
-def root():
-    return {"message": "Hello World"}
+app.include_router(dashboard_router)
 
 
 if __name__ == "__mai
