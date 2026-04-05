@@ -1,15 +1,9 @@
 -- Migration 001: Initial schema
 -- Run against Supabase SQL Editor on 2026-04-05
 --
--- Creates the three core tables and seeds a default user + categories.
+-- Creates the core tables and seeds default categories.
 -- This migration is idempotent for seed data (ON CONFLICT DO NOTHING).
-
--- Single-user auth: stores the login credentials checked by /login
-CREATE TABLE users (
-    id       SERIAL PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL
-);
+-- Note: Auth is handled by Supabase Auth (auth.users), not a custom table.
 
 -- Predefined expense categories (e.g. Food, Transport)
 CREATE TABLE categories (
@@ -27,10 +21,6 @@ CREATE TABLE expenses (
     receipt_path TEXT,                                   -- local path to uploaded image
     created_at   TIMESTAMPTZ DEFAULT NOW()
 );
-
--- Seed a default admin user (single-user app)
-INSERT INTO users (username, password) VALUES ('admin', 'admin123')
-ON CONFLICT (username) DO NOTHING;
 
 -- Seed default categories
 INSERT INTO categories (name) VALUES

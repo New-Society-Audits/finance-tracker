@@ -5,8 +5,10 @@ Creates the FastAPI app, registers middleware and routers,
 and starts the dev server when run directly.
 """
 
+import os
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -17,8 +19,10 @@ from app.dashboard import router as dashboard_router
 from app.expenses import router as expenses_router
 from app.database import init_db
 
-# Used to sign session cookies — swap for a real secret in production
-SECRET_KEY = "change-this-before-deploying"
+load_dotenv()
+
+# Used to sign session cookies — read from env for security
+SECRET_KEY = os.environ.get("SESSION_SECRET", "change-this-before-deploying")
 
 
 @asynccontextmanager
