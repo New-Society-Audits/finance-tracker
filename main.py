@@ -1,3 +1,10 @@
+"""
+Finance Tracker — application entry point.
+
+Creates the FastAPI app, registers middleware and routers,
+and starts the dev server when run directly.
+"""
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -10,21 +17,29 @@ from app.dashboard import router as dashboard_router
 from app.expenses import router as expenses_router
 from app.database import init_db
 
+# Used to sign session cookies — swap for a real secret in production
 SECRET_KEY = "change-this-before-deploying"
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    """Run one-time startup tasks (currently a no-op kept for future use)."""
     init_db()
     yield
 
 
 app = FastAPI(lifespan=lifespan)
+
+# Serve CSS and other static assets from /static
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Session middleware stores login state in a signed cookie
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
-app.include_router(auth_router)
-app.include_router(dashboard_router)
-app.include_router(expenses_router)
+
+# Register route groups
+app.include_router(auth_router)       # /login, /logout
+app.include_router(dashboard_router)  # /, /modal/add-expense, /partials/expense-list
+app.include_router(expenses_router)   # /upload/receipt, /upload/statement, /expense/{id}/category
 
 
 if __name__ == "__main__":

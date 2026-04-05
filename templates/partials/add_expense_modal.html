@@ -1,3 +1,10 @@
+<!--
+  Add Expense modal — loaded via HTMX into #modal-container.
+  Provides two upload modes (Receipt image / CSV bank statement)
+  toggled by the tab buttons at the top.
+  Each form submits via HTMX POST; the server returns a success/error
+  snippet that replaces #modal-body-content.
+-->
 <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this){this.remove()}">
   <div class="modal">
     <div class="modal-header">
@@ -6,7 +13,7 @@
     </div>
 
     <div class="modal-body">
-      <!-- Toggle: Receipt / Bank Statement -->
+      <!-- Toggle between receipt image and bank statement upload -->
       <div class="upload-toggle">
         <button class="toggle-btn active" id="toggle-receipt" onclick="switchTab('receipt')">Receipt</button>
         <button class="toggle-btn" id="toggle-statement" onclick="switchTab('statement')">Bank Statement</button>
@@ -60,6 +67,7 @@
 </div>
 
 <script>
+// Toggle visibility between receipt and statement upload forms
 function switchTab(tab) {
   document.getElementById('tab-receipt').classList.toggle('hidden', tab !== 'receipt');
   document.getElementById('tab-statement').classList.toggle('hidden', tab !== 'statement');
@@ -67,6 +75,7 @@ function switchTab(tab) {
   document.getElementById('toggle-statement').classList.toggle('active', tab === 'statement');
 }
 
+// Show selected filename and enable the submit button
 function fileSelected(input, type) {
   const nameEl = document.getElementById('file-name-' + type);
   const submitBtn = document.getElementById('submit-' + type);
@@ -76,7 +85,7 @@ function fileSelected(input, type) {
   }
 }
 
-// Drag-and-drop for both zones
+// Set up drag-and-drop handlers for both upload zones
 ['receipt', 'statement'].forEach(type => {
   const zone = document.getElementById('drop-zone-' + type);
   const form = document.getElementById(type + '-form');

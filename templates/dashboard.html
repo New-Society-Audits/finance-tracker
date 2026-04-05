@@ -10,7 +10,7 @@
 <body>
   <div class="app">
 
-    <!-- ── Header ── -->
+    <!-- ── Header: logo + profile dropdown with logout ── -->
     <header class="header">
       <div class="brand">
         <svg width="28" height="28" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -36,10 +36,10 @@
       </div>
     </header>
 
-    <!-- ── Main layout ── -->
+    <!-- ── Main layout: left panel (expenses) + right panel (future charts) ── -->
     <main class="main">
 
-      <!-- Left panel: expense list -->
+      <!-- Left panel: filterable expense list loaded from the database -->
       <aside class="left-panel">
         <div class="list-toolbar">
           <div class="filter-wrap">
@@ -67,35 +67,41 @@
         </ul>
       </aside>
 
-      <!-- Right panel: reserved for future charts -->
+      <!-- Right panel: placeholder for future charts/analytics -->
       <section class="right-panel">
         <span class="right-panel-hint">Charts coming soon</span>
       </section>
 
     </main>
 
-    <!-- Floating "+" button -->
+    <!-- Floating "+" button — loads the add-expense modal via HTMX -->
     <button class="add-btn" aria-label="Add expense"
             hx-get="/modal/add-expense" hx-target="#modal-container" hx-swap="innerHTML">+</button>
 
-    <!-- Modal container (HTMX loads content here) -->
+    <!-- Empty container where HTMX injects the add-expense modal HTML -->
     <div id="modal-container"></div>
 
   </div>
 
   <script>
+    // ── Profile dropdown toggle ──
     const profileBtn = document.getElementById('profile-btn');
     const profileDropdown = document.getElementById('profile-dropdown');
     profileBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       profileDropdown.classList.toggle('open');
     });
+
+    // Close any open dropdown when clicking outside
     document.addEventListener('click', () => {
       profileDropdown.classList.remove('open');
       document.getElementById('filter-dropdown').classList.remove('open');
     });
     document.getElementById('filter-btn').addEventListener('click', (e) => e.stopPropagation());
 
+    // ── Category filter selection ──
+    // Updates the active filter label and closes the dropdown;
+    // the actual filtering is handled by HTMX (hx-get on each option).
     function selectFilter(el, label) {
       document.querySelectorAll('.filter-option').forEach(o => o.classList.remove('active'));
       el.classList.add('active');

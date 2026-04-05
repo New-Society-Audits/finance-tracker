@@ -1,3 +1,6 @@
+<!-- Expense list partial — rendered inside <ul id="expense-list"> on the dashboard.
+     Each item is expandable (via <details>) to show amount and category dropdown.
+     The category <select> fires an HTMX PUT to update the category in-place. -->
 {% if not expenses %}
 <li class="empty-state">No expenses yet. Hit + to add one.</li>
 {% endif %}

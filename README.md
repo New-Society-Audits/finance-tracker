@@ -1,0 +1,73 @@
+# Finance Tracker
+
+A personal expense tracking app. Upload a receipt photo or bank statement and expenses are automatically extracted, categorized, and added to your list.
+
+## Tech Stack
+
+- **Backend:** FastAPI + Jinja2
+- **Frontend:** HTMX
+- **Database:** Supabase (PostgreSQL)
+- **Package Manager:** uv
+
+## Setup
+
+### Prerequisites
+
+- Python 3.9+
+- [uv](https://docs.astral.sh/uv/)
+- A [Supabase](https://supabase.com/) project
+
+### Install dependencies
+
+```sh
+uv sync
+```
+
+### Configure environment
+
+Create a `.env` file in the project root:
+
+```
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your_publishable_key
+SUPABASE_SECRET_KEY=your_secret_key
+```
+
+### Initialize the database
+
+Run the migration in `migrations/001_initial_schema.sql` against your Supabase project's SQL Editor. This creates the `users`, `categories`, and `expenses` tables and seeds default data.
+
+### Run the app
+
+```sh
+uv run main.py
+```
+
+The app will be available at `http://localhost:8000`.
+
+## Project Structure
+
+```
+app/
+  auth.py          # Login/logout routes
+  dashboard.py     # Dashboard and expense list endpoints
+  database.py      # Supabase client
+  expenses.py      # Receipt/statement upload, category updates
+templates/
+  login.html
+  dashboard.html
+  partials/        # HTMX partials (expense list, add modal)
+static/
+  login.css
+  dashboard.css
+migrations/
+  001_initial_schema.sql
+```
+
+## Features
+
+- Single-user login with session auth
+- Expense list with expandable details and category assignment
+- Filter expenses by category
+- Receipt image upload (extraction via AI — in progress)
+- CSV bank statement import with deduplication
