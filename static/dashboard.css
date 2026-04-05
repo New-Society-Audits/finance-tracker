@@ -134,6 +134,39 @@ body {
 
 .filter-btn:hover { background: #eee; }
 
+.filter-wrap {
+  position: relative;
+}
+
+.filter-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  min-width: 150px;
+  max-height: 260px;
+  overflow-y: auto;
+  z-index: 50;
+}
+
+.filter-dropdown.open { display: block; }
+
+.filter-option {
+  display: block;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: #333;
+  text-decoration: none;
+  transition: background 0.12s;
+}
+
+.filter-option:hover { background: #f5f5f5; }
+.filter-option.active { color: #4f46e5; font-weight: 600; }
+
 /* ── Expense list ── */
 .expense-list {
   list-style: none;
@@ -272,4 +305,173 @@ details[open] .chevron {
 .add-btn:hover {
   background: #4338ca;
   transform: scale(1.06);
+}
+
+/* ── Modal ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 14px;
+  width: 460px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: #aaa;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+
+.modal-close:hover { background: #f0f0f0; color: #555; }
+
+.modal-body {
+  padding: 18px 22px 22px;
+}
+
+/* Toggle tabs */
+.upload-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 18px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.toggle-btn {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #777;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.toggle-btn.active {
+  background: #fff;
+  color: #111;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Drop zone */
+.drop-zone {
+  border: 2px dashed #ddd;
+  border-radius: 10px;
+  padding: 32px 20px;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.drop-zone.drag-over {
+  border-color: #4f46e5;
+  background: #f8f7ff;
+}
+
+.drop-text {
+  font-size: 14px;
+  color: #888;
+  margin-top: 12px;
+}
+
+.drop-subtext {
+  font-size: 12px;
+  color: #bbb;
+  margin: 6px 0;
+}
+
+.file-label {
+  display: inline-block;
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4f46e5;
+  background: #f0eeff;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.file-label:hover { background: #e8e5ff; }
+
+.file-name {
+  font-size: 12px;
+  color: #4f46e5;
+  margin-top: 8px;
+  min-height: 16px;
+}
+
+.upload-submit {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 10px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  background: #4f46e5;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.upload-submit:hover { background: #4338ca; }
+.upload-submit:disabled { background: #c4c0f0; cursor: not-allowed; }
+
+.hidden { display: none !important; }
+
+/* Upload result messages */
+.upload-success {
+  padding: 14px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  color: #065f46;
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+.upload-error {
+  padding: 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: 13px;
+  margin-top: 12px;
 }

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Finance Tracker</title>
   <link rel="stylesheet" href="/static/dashboard.css" />
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
 </head>
 <body>
   <div class="app">
@@ -41,43 +42,28 @@
       <!-- Left panel: expense list -->
       <aside class="left-panel">
         <div class="list-toolbar">
-          <button class="filter-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 6h18M7 12h10M11 18h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            Filter
-          </button>
+          <div class="filter-wrap">
+            <button class="filter-btn" id="filter-btn" onclick="document.getElementById('filter-dropdown').classList.toggle('open')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 6h18M7 12h10M11 18h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span id="filter-label">Filter</span>
+            </button>
+            <div class="filter-dropdown" id="filter-dropdown">
+              <a class="filter-option active" href="#"
+                 hx-get="/partials/expense-list" hx-target="#expense-list" hx-swap="innerHTML"
+                 onclick="selectFilter(this, 'Filter')">All</a>
+              {% for cat in categories %}
+              <a class="filter-option" href="#"
+                 hx-get="/partials/expense-list?category={{ cat }}" hx-target="#expense-list" hx-swap="innerHTML"
+                 onclick="selectFilter(this, '{{ cat }}')">{{ cat }}</a>
+              {% endfor %}
+            </div>
+          </div>
         </div>
 
-        <ul class="expense-list">
-          {% if not expenses %}
-          <li class="empty-state">No expenses yet. Hit + to add one.</li>
-          {% endif %}
-          {% for expense in expenses %}
-          <li class="expense-item">
-            <details class="expense-details">
-              <summary class="expense-summary">
-                <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M9 6l6 6-6 6" stroke="#aaa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span class="expense-name">{{ expense.name }}</span>
-                <span class="expense-date">{{ expense.date }}</span>
-              </summary>
-              <div class="expense-body">
-                <div class="expense-amount">${{ "%.2f"|format(expense.amount) }}</div>
-                <div class="category-row">
-                  <label class="category-label">Category</label>
-                  <select class="category-select">
-                    <option value="">— select —</option>
-                    {% for cat in categories %}
-                    <option value="{{ cat }}" {% if cat == expense.category %}selected{% endif %}>{{ cat }}</option>
-                    {% endfor %}
-                  </select>
-                </div>
-              </div>
-            </details>
-          </li>
-          {% endfor %}
+        <ul class="expense-list" id="expense-list">
+          {% include "partials/expense_list.html" %}
         </ul>
       </aside>
 
@@ -89,7 +75,11 @@
     </main>
 
     <!-- Floating "+" button -->
-    <button class="add-btn" aria-label="Add expense">+</button>
+    <button class="add-btn" aria-label="Add expense"
+            hx-get="/modal/add-expense" hx-target="#modal-container" hx-swap="innerHTML">+</button>
+
+    <!-- Modal container (HTMX loads content here) -->
+    <div id="modal-container"></div>
 
   </div>
 
@@ -100,7 +90,18 @@
       e.stopPropagation();
       profileDropdown.classList.toggle('open');
     });
-    document.addEventListener('click', () => profileDropdown.classList.remove('open'));
+    document.addEventListener('click', () => {
+      profileDropdown.classList.remove('open');
+      document.getElementById('filter-dropdown').classList.remove('open');
+    });
+    document.getElementById('filter-btn').addEventListener('click', (e) => e.stopPropagation());
+
+    function selectFilter(el, label) {
+      document.querySelectorAll('.filter-option').forEach(o => o.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById('filter-label').textContent = label;
+      document.getElementById('filter-dropdown').classList.remove('open');
+    }
   </script>
 </body>
 </html>

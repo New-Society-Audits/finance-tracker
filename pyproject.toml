@@ -12,3 +12,8 @@ dependencies = [
     "python-multipart>=0.0.20",
     "uvicorn>=0.39.0",
 ]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+]
