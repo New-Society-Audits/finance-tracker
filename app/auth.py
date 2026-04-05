@@ -2,7 +2,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from app.database import get_connection
+from app.database import get_client
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -15,14 +15,16 @@ def login_page(request: Request):
 
 @router.post("/login")
 def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    conn = get_connection()
-    user = conn.execute(
-        "SELECT id FROM users WHERE username = ? AND password = ?",
-        (username, password),
-    ).fetchone()
-    conn.close()
+    result = (
+        get_client()
+        .table("users")
+        .select("id")
+        .eq("username", username)
+        .eq("password", password)
+        .execute()
+    )
 
-    if user is None:
+    if not result.data:
         return templates.TemplateResponse(
             "login.html",
             {"request": request, "error": "Invalid username or password."},

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request, UploadFile, File
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from app.database import get_connection
+from app.database import get_client
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -55,17 +55,17 @@ async def upload_receipt(request: Request, file: UploadFile = File(...)):
     # Extract data from receipt image
     data = await extract_receipt_data(file_path)
 
-    # Resolve category
-    conn = get_connection()
-    cat_row = conn.execute("SELECT id FROM categories WHERE name = ?", (data["category"],)).fetchone()
-    category_id = cat_row["id"] if cat_row else None
+    db = get_client()
+    cat_result = db.table("categories").select("id").eq("name", data["category"]).execute()
+    category_id = cat_result.data[0]["id"] if cat_result.data else None
 
-    conn.execute(
-        "INSERT INTO expenses (name, amount, date, category_id, receipt_path) VALUES (?, ?, ?, ?, ?)",
-        (data["name"], data["amount"], data["date"], category_id, file_path),
-    )
-    conn.commit()
-    conn.close()
+    db.table("expenses").insert({
+        "name": data["name"],
+        "amount": data["amount"],
+        "date": data["date"],
+        "category_id": category_id,
+        "receipt_path": file_path,
+    }).execute()
 
     return HTMLResponse("""
         <div class="upload-success">
@@ -121,23 +121,26 @@ async def upload_statement(request: Request, file: UploadFile = File(...)):
     if not transactions:
         return HTMLResponse('<div class="upload-error">No transactions found in file.</div>')
 
-    conn = get_connection()
+    db = get_client()
     inserted = 0
     for txn in transactions:
         # Dedup: skip if same name, amount, and date already exist
-        existing = conn.execute(
-            "SELECT id FROM expenses WHERE name = ? AND amount = ? AND date = ?",
-            (txn["name"], txn["amount"], txn["date"]),
-        ).fetchone()
-        if existing:
-            continue
-        conn.execute(
-            "INSERT INTO expenses (name, amount, date) VALUES (?, ?, ?)",
-            (txn["name"], txn["amount"], txn["date"]),
+        existing = (
+            db.table("expenses")
+            .select("id")
+            .eq("name", txn["name"])
+            .eq("amount", txn["amount"])
+            .eq("date", txn["date"])
+            .execute()
         )
+        if existing.data:
+            continue
+        db.table("expenses").insert({
+            "name": txn["name"],
+            "amount": txn["amount"],
+            "date": txn["date"],
+        }).execute()
         inserted += 1
-    conn.commit()
-    conn.close()
 
     return HTMLResponse(f"""
         <div class="upload-success">
@@ -164,15 +167,13 @@ async def update_category(request: Request, expense_id: int):
     form = await request.form()
     category_name = form.get("category", "")
 
-    conn = get_connection()
+    db = get_client()
     if category_name:
-        cat_row = conn.execute("SELECT id FROM categories WHERE name = ?", (category_name,)).fetchone()
-        category_id = cat_row["id"] if cat_row else None
+        cat_result = db.table("categories").select("id").eq("name", category_name).execute()
+        category_id = cat_result.data[0]["id"] if cat_result.data else None
     else:
         category_id = None
 
-    conn.execute("UPDATE expenses SET category_id = ? WHERE id = ?", (category_id, expense_id))
-    conn.commit()
-    conn.close()
+    db.table("expenses").update({"category_id": category_id}).eq("id", expense_id).execute()
 
     return HTMLResponse(status_code=200)

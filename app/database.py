@@ -1,60 +1,26 @@
-import sqlite3
+from __future__ import annotations
 
-DB_PATH = "finance.db"
+import os
+from typing import Optional
 
+from dotenv import load_dotenv
+from supabase import create_client, Client
 
-def get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row  # rows behave like dicts
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+load_dotenv()
 
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_KEY = os.environ["SUPABASE_SECRET_KEY"]
 
-def create_tables() -> None:
-    conn = get_connection()
-    with conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id       INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS categories (
-                id   INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE NOT NULL
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS expenses (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                name         TEXT NOT NULL,
-                amount       REAL NOT NULL,
-                date         TEXT NOT NULL,
-                category_id  INTEGER REFERENCES categories(id),
-                receipt_path TEXT,
-                created_at   TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-    conn.close()
+_client: Optional[Client] = None
 
 
-def seed() -> None:
-    conn = get_connection()
-    with conn:
-        conn.execute(
-            "INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)",
-            ("admin", "admin123"),
-        )
-        for name in ["Food", "Transport", "Shopping", "Entertainment", "Health", "Utilities", "Other"]:
-            conn.execute(
-                "INSERT OR IGNORE INTO categories (name) VALUES (?)",
-                (name,),
-            )
-    conn.close()
+def get_client() -> Client:
+    global _client
+    if _client is None:
+        _client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    return _client
 
 
 def init_db() -> None:
-    create_tables()
-    seed()
+    """No-op — tables are managed via migrations in Supabase."""
+    pass

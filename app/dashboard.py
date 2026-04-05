@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from app.database import get_connection
+from app.database import get_client
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -15,16 +15,28 @@ def _require_auth(request: Request):
 
 
 def _get_expenses_and_categories():
-    conn = get_connection()
-    expenses = conn.execute("""
-        SELECT e.id, e.name, e.amount, e.date, c.name AS category
-        FROM expenses e
-        LEFT JOIN categories c ON e.category_id = c.id
-        ORDER BY e.date DESC
-    """).fetchall()
-    categories = conn.execute("SELECT name FROM categories ORDER BY name").fetchall()
-    conn.close()
-    return [dict(e) for e in expenses], [row["name"] for row in categories]
+    db = get_client()
+    expenses = (
+        db.table("expenses")
+        .select("id, name, amount, date, categories(name)")
+        .order("date", desc=True)
+        .execute()
+        .data
+    )
+    categories = (
+        db.table("categories")
+        .select("name")
+        .order("name")
+        .execute()
+        .data
+    )
+
+    # Flatten the joined category name
+    for e in expenses:
+        cat = e.pop("categories", None)
+        e["category"] = cat["name"] if cat else None
+
+    return expenses, [row["name"] for row in categories]
 
 
 @router.get("/")
@@ -59,30 +71,35 @@ def expense_list_partial(request: Request, category: str = ""):
     if redirect:
         return redirect
 
-    conn = get_connection()
+    db = get_client()
+
+    query = db.table("expenses").select("id, name, amount, date, categories(name)").order("date", desc=True)
     if category:
-        expenses = conn.execute("""
-            SELECT e.id, e.name, e.amount, e.date, c.name AS category
-            FROM expenses e
-            LEFT JOIN categories c ON e.category_id = c.id
-            WHERE c.name = ?
-            ORDER BY e.date DESC
-        """, (category,)).fetchall()
-    else:
-        expenses = conn.execute("""
-            SELECT e.id, e.name, e.amount, e.date, c.name AS category
-            FROM expenses e
-            LEFT JOIN categories c ON e.category_id = c.id
-            ORDER BY e.date DESC
-        """).fetchall()
-    categories = conn.execute("SELECT name FROM categories ORDER BY name").fetchall()
-    conn.close()
+        query = query.eq("categories.name", category)
+
+    expenses = query.execute().data
+
+    # Filter out rows where the category join returned null (when filtering)
+    if category:
+        expenses = [e for e in expenses if e.get("categories")]
+
+    for e in expenses:
+        cat = e.pop("categories", None)
+        e["category"] = cat["name"] if cat else None
+
+    categories = (
+        db.table("categories")
+        .select("name")
+        .order("name")
+        .execute()
+        .data
+    )
 
     return templates.TemplateResponse(
         "partials/expense_list.html",
         {
             "request": request,
-            "expenses": [dict(e) for e in expenses],
+            "expenses": expenses,
             "categories": [row["name"] for row in categories],
         },
     )
