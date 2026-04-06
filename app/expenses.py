@@ -9,16 +9,29 @@ Category update: changes the category assigned to a single expense (called by
                  the inline dropdown via HTMX PUT).
 """
 
+import base64
 import csv
 import io
+import json
+import logging
+import mimetypes
 import os
 from datetime import datetime
 
+import httpx
 from fastapi import APIRouter, Request, UploadFile, File
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from app.database import get_client
+
+logger = logging.getLogger(__name__)
+
+def _openrouter_api_key():
+    return os.getenv("OPENROUTER_API_KEY", "")
+
+def _openrouter_model():
+    return os.getenv("OPENROUTER_MODEL", "google/gemini-flash-2.0")
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -37,18 +50,70 @@ def _require_auth(request: Request):
 
 # ── Receipt upload ──────────────────────────────────────────
 
-async def extract_receipt_data(file_path: str) -> dict:
-    """Extract expense fields from a receipt image.
+VALID_CATEGORIES = ["Food", "Transport", "Shopping", "Entertainment", "Health", "Utilities", "Other"]
 
-    TODO: Replace this stub with an AI vision model call that returns
-    the actual name, amount, date, and category from the image.
-    """
-    return {
+RECEIPT_SYSTEM_PROMPT = f"""\
+You are a receipt parser. Given a photo of a receipt, extract:
+- name: a short description of the purchase (e.g. "Grocery run at Trader Joe's")
+- amount: the total amount paid as a number (e.g. 42.50)
+- date: the date on the receipt in YYYY-MM-DD format
+- category: one of {VALID_CATEGORIES}
+
+Respond ONLY with a JSON object, no markdown fences or extra text.
+Example: {{"name": "Coffee at Starbucks", "amount": 5.75, "date": "2026-03-15", "category": "Food"}}
+"""
+
+
+async def extract_receipt_data(file_path: str) -> dict:
+    """Extract expense fields from a receipt image via OpenRouter vision model."""
+    fallback = {
         "name": "Receipt expense",
         "amount": 0.00,
         "date": datetime.now().strftime("%Y-%m-%d"),
         "category": "Other",
     }
+
+    if not _openrouter_api_key():
+        logger.warning("OPENROUTER_API_KEY not set — using fallback receipt data")
+        return fallback
+
+    # Base64-encode the image
+    mime_type = mimetypes.guess_type(file_path)[0] or "image/jpeg"
+    with open(file_path, "rb") as f:
+        image_b64 = base64.b64encode(f.read()).decode()
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        try:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {_openrouter_api_key()}"},
+                json={
+                    "model": _openrouter_model(),
+                    "messages": [
+                        {"role": "system", "content": RECEIPT_SYSTEM_PROMPT},
+                        {"role": "user", "content": [
+                            {"type": "image_url", "image_url": {
+                                "url": f"data:{mime_type};base64,{image_b64}",
+                            }},
+                            {"type": "text", "text": "Extract the expense details from this receipt."},
+                        ]},
+                    ],
+                },
+            )
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"]
+            data = json.loads(content)
+
+            # Validate and sanitize
+            return {
+                "name": str(data.get("name", fallback["name"]))[:200],
+                "amount": round(float(data.get("amount", 0)), 2),
+                "date": str(data.get("date", fallback["date"])),
+                "category": data.get("category") if data.get("category") in VALID_CATEGORIES else "Other",
+            }
+        except Exception as e:
+            logger.error("Receipt extraction failed: %s", e)
+            return fallback
 
 
 @router.post("/upload/receipt")
