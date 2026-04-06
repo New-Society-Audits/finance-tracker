@@ -64,6 +64,23 @@ migrations/
   001_initial_schema.sql
 ```
 
+## Deployment (Render)
+
+The app is deployed on [Render](https://render.com/) as a Web Service.
+
+- **Runtime:** Python 3
+- **Build command:** `pip install uv && uv sync --frozen`
+- **Start command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
+
+Set these environment variables in the Render dashboard:
+
+| Variable | Description |
+|---|---|
+| `SESSION_SECRET` | Random string for signing session cookies |
+| `SUPABASE_URL` | Your Supabase project URL |
+| `SUPABASE_KEY` | Supabase publishable/anon key |
+| `SUPABASE_SECRET_KEY` | Supabase service-role key |
+
 ## Features
 
 - Single-user login with session auth
