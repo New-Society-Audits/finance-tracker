@@ -100,8 +100,16 @@ async def extract_receipt_data(file_path: str) -> dict:
                     ],
                 },
             )
-            resp.raise_for_status()
-            content = resp.json()["choices"][0]["message"]["content"]
+            result = resp.json()
+            if resp.status_code != 200:
+                logger.error("OpenRouter error %s: %s", resp.status_code, result)
+                return fallback
+            content = result["choices"][0]["message"]["content"]
+            # Strip markdown fences if the model wraps the JSON
+            content = content.strip()
+            if content.startswith("```"):
+                content = content.split("\n", 1)[1]  # remove opening fence
+                content = content.rsplit("```", 1)[0]  # remove closing fence
             data = json.loads(content)
 
             # Validate and sanitize
