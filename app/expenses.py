@@ -135,6 +135,9 @@ async def upload_receipt(request: Request, file: UploadFile = File(...)):
     if auth:
         return auth
 
+    if not (file.content_type or "").startswith("image/"):
+        return HTMLResponse('<div class="upload-error">Only image files are supported for receipts.</div>')
+
     # Save the uploaded file with a timestamped filename
     contents = await file.read()
     filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
