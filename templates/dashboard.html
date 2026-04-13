@@ -108,6 +108,23 @@
       document.getElementById('filter-label').textContent = label;
       document.getElementById('filter-dropdown').classList.remove('open');
     }
+
+    function confirmDelete(btn, id) {
+      if (btn.dataset.confirm) {
+        htmx.ajax('DELETE', '/expense/' + id, {target: btn.closest('.expense-item'), swap: 'outerHTML'});
+        return;
+      }
+      btn.dataset.confirm = '1';
+      btn.textContent = 'Confirm?';
+      btn.classList.add('delete-confirm');
+      setTimeout(() => {
+        if (btn.isConnected) {
+          delete btn.dataset.confirm;
+          btn.textContent = 'Delete';
+          btn.classList.remove('delete-confirm');
+        }
+      }, 3000);
+    }
   </script>
 </body>
 </html>

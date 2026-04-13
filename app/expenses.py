@@ -157,7 +157,7 @@ async def upload_receipt(request: Request, file: UploadFile = File(...)):
 
     db.table("expenses").insert({
         "name": data["name"],
-        "amount": data["amount"],
+        "amount": -abs(data["amount"]),
         "date": data["date"],
         "category_id": category_id,
         "receipt_path": file_path,
@@ -254,8 +254,7 @@ def parse_csv_statement(raw: bytes) -> list[dict]:
     for row in reader:
         raw_amount = (row.get(amount_col) or "").strip()
         signed = _parse_amount(raw_amount)
-        # Skip unparseable, zero, and incoming (positive) transactions.
-        if signed is None or signed >= 0:
+        if signed is None or signed == 0:
             continue
 
         date_iso = _parse_date((row.get(date_col) or "").strip())
@@ -266,7 +265,7 @@ def parse_csv_statement(raw: bytes) -> list[dict]:
         if not name:
             name = "Bank transaction"
 
-        transactions.append({"name": name, "amount": abs(signed), "date": date_iso})
+        transactions.append({"name": name, "amount": signed, "date": date_iso})
     return transactions
 
 
@@ -353,3 +352,17 @@ async def update_category(request: Request, expense_id: int):
     db.table("expenses").update({"category_id": category_id}).eq("id", expense_id).execute()
 
     return HTMLResponse(status_code=200)
+
+
+# ── Delete expense ─────────────────────────────────────────
+
+@router.delete("/expense/{expense_id}")
+async def delete_expense(request: Request, expense_id: int):
+    auth = _require_auth(request)
+    if auth:
+        return auth
+
+    db = get_client()
+    db.table("expenses").delete().eq("id", expense_id).execute()
+
+    return HTMLResponse("")

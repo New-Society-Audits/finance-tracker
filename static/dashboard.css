@@ -238,6 +238,24 @@ details[open] .chevron {
   color: #111;
   margin-bottom: 12px;
 }
+.amount-out { color: #dc2626; }
+.amount-in { color: #16a34a; }
+
+.delete-btn {
+  margin-top: 12px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #dc2626;
+  background: none;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.delete-btn:hover { background: #fef2f2; }
+.delete-confirm { background: #dc2626; color: #fff; border-color: #dc2626; }
+.delete-confirm:hover { background: #b91c1c; }
 
 .category-row {
   display: flex;

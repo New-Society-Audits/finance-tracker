@@ -15,7 +15,9 @@
       <span class="expense-date">{{ expense.date[8:10] }}/{{ expense.date[5:7] }}/{{ expense.date[0:4] }}</span>
     </summary>
     <div class="expense-body">
-      <div class="expense-amount">{{ "%.2f"|format(expense.amount) }} Kč</div>
+      <div class="expense-amount {% if expense.amount < 0 %}amount-out{% else %}amount-in{% endif %}">
+        {{ "−" if expense.amount < 0 else "+" }}{{ "%.2f"|format(expense.amount|abs) }} Kč
+      </div>
       <div class="category-row">
         <label class="category-label">Category</label>
         <select class="category-select"
@@ -29,6 +31,7 @@
           {% endfor %}
         </select>
       </div>
+      <button class="delete-btn" onclick="confirmDelete(this, {{ expense.id }})">Delete</button>
     </div>
   </details>
 </li>
