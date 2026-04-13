@@ -52,7 +52,9 @@ def _require_auth(request: Request):
 
 # ── Receipt upload ──────────────────────────────────────────
 
-VALID_CATEGORIES = ["Food", "Transport", "Shopping", "Entertainment", "Health", "Utilities", "Other"]
+VALID_EXPENSE_CATEGORIES = ["Food", "Transport", "Shopping", "Entertainment", "Health", "Utilities", "Investment", "Taxes", "Other"]
+VALID_INCOME_CATEGORIES = ["Salary", "Refund", "Gift", "Investment Returns", "Other Income"]
+VALID_CATEGORIES = VALID_EXPENSE_CATEGORIES + VALID_INCOME_CATEGORIES
 
 RECEIPT_SYSTEM_PROMPT = f"""\
 You are a receipt parser. Given a photo of a receipt, extract:

@@ -35,7 +35,7 @@ def _get_expenses_and_categories():
     )
     categories = (
         db.table("categories")
-        .select("name")
+        .select("name, type")
         .order("name")
         .execute()
         .data
@@ -47,7 +47,9 @@ def _get_expenses_and_categories():
         cat = e.pop("categories", None)
         e["category"] = cat["name"] if cat else None
 
-    return expenses, [row["name"] for row in categories]
+    expense_cats = [row["name"] for row in categories if row.get("type") == "expense"]
+    income_cats = [row["name"] for row in categories if row.get("type") == "income"]
+    return expenses, expense_cats, income_cats
 
 
 @router.get("/")
@@ -57,14 +59,17 @@ def dashboard(request: Request):
     if redirect:
         return redirect
 
-    expenses, categories = _get_expenses_and_categories()
+    expenses, expense_categories, income_categories = _get_expenses_and_categories()
+    all_categories = expense_categories + income_categories
     return templates.TemplateResponse(
         "dashboard.html",
         {
             "request": request,
             "user": request.session["user"],
             "expenses": expenses,
-            "categories": categories,
+            "categories": all_categories,
+            "expense_categories": expense_categories,
+            "income_categories": income_categories,
         },
     )
 
@@ -108,17 +113,21 @@ def expense_list_partial(request: Request, category: str = ""):
 
     categories = (
         db.table("categories")
-        .select("name")
+        .select("name, type")
         .order("name")
         .execute()
         .data
     )
+
+    expense_cats = [row["name"] for row in categories if row.get("type") == "expense"]
+    income_cats = [row["name"] for row in categories if row.get("type") == "income"]
 
     return templates.TemplateResponse(
         "partials/expense_list.html",
         {
             "request": request,
             "expenses": expenses,
-            "categories": [row["name"] for row in categories],
+            "expense_categories": expense_cats,
+            "income_categories": income_cats,
         },
     )

@@ -26,7 +26,8 @@
                 hx-swap="none"
                 name="category">
           <option value="">— select —</option>
-          {% for cat in categories %}
+          {% set cats = income_categories if expense.amount > 0 else expense_categories %}
+          {% for cat in cats %}
           <option value="{{ cat }}" {% if cat == expense.category %}selected{% endif %}>{{ cat }}</option>
           {% endfor %}
         </select>
