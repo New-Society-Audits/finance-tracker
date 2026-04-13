@@ -6,6 +6,7 @@
   <title>Finance Tracker</title>
   <link rel="stylesheet" href="/static/dashboard.css" />
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
 <body>
   <div class="app">
@@ -67,9 +68,39 @@
         </ul>
       </aside>
 
-      <!-- Right panel: placeholder for future charts/analytics -->
+      <!-- Right panel: charts -->
       <section class="right-panel">
-        <span class="right-panel-hint">Charts coming soon</span>
+        <div class="chart-controls">
+          <div class="control-row">
+            <label class="control-label">From</label>
+            <input type="date" id="date-from" class="control-input" onchange="updateCharts()" />
+            <label class="control-label">To</label>
+            <input type="date" id="date-to" class="control-input" onchange="updateCharts()" />
+          </div>
+          <div class="control-row">
+            <select id="chart-category" class="control-input" onchange="updateCharts()">
+              <option value="">All categories</option>
+              {% for cat in categories %}
+              <option value="{{ cat }}">{{ cat }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="control-row">
+            <div class="timeframe-toggle">
+              <button class="timeframe-btn active" data-tf="daily" onclick="setTimeframe(this)">Daily</button>
+              <button class="timeframe-btn" data-tf="weekly" onclick="setTimeframe(this)">Weekly</button>
+              <button class="timeframe-btn" data-tf="monthly" onclick="setTimeframe(this)">Monthly</button>
+            </div>
+          </div>
+        </div>
+        <div class="chart-container">
+          <h3 class="chart-title" id="spending-title">Daily Spending</h3>
+          <canvas id="spending-chart"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3 class="chart-title">By Category</h3>
+          <canvas id="category-chart"></canvas>
+        </div>
       </section>
 
     </main>
@@ -125,6 +156,170 @@
         }
       }, 3000);
     }
+
+    // ── Charts ──
+    const allExpenses = {{ expenses | tojson }};
+    const catColors = ['#4f46e5','#06b6d4','#f59e0b','#ef4444','#10b981','#8b5cf6','#ec4899','#6b7280'];
+    let timeframe = 'daily';
+    let spendingChart, categoryChart;
+
+    // Set default date range from data
+    const allDates = allExpenses.map(e => e.date).filter(Boolean).sort();
+    if (allDates.length) {
+      document.getElementById('date-from').value = allDates[0];
+      document.getElementById('date-to').value = allDates[allDates.length - 1];
+    }
+
+    function getFiltered() {
+      const from = document.getElementById('date-from').value;
+      const to = document.getElementById('date-to').value;
+      const cat = document.getElementById('chart-category').value;
+      return allExpenses.filter(e => {
+        if (e.amount >= 0) return false;
+        if (from && e.date < from) return false;
+        if (to && e.date > to) return false;
+        if (cat && (e.category || 'Uncategorized') !== cat) return false;
+        return true;
+      });
+    }
+
+    function getWeekKey(dateStr) {
+      const d = new Date(dateStr);
+      const day = d.getDay() || 7;
+      d.setDate(d.getDate() - day + 1);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function formatLabel(key, tf) {
+      if (tf === 'monthly') return key.slice(5, 7) + '/' + key.slice(0, 4);
+      return key.slice(8) + '/' + key.slice(5, 7);
+    }
+
+    function addDays(dateStr, n) {
+      const d = new Date(dateStr);
+      d.setDate(d.getDate() + n);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function addMonths(dateStr, n) {
+      const d = new Date(dateStr + '-01');
+      d.setMonth(d.getMonth() + n);
+      return d.toISOString().slice(0, 7);
+    }
+
+    function fillGaps(map) {
+      const keys = Object.keys(map).sort();
+      if (keys.length < 2) return keys;
+      const filled = [];
+      if (timeframe === 'daily') {
+        let cur = keys[0];
+        while (cur <= keys[keys.length - 1]) {
+          filled.push(cur);
+          if (!(cur in map)) map[cur] = 0;
+          cur = addDays(cur, 1);
+        }
+      } else if (timeframe === 'weekly') {
+        let cur = keys[0];
+        while (cur <= keys[keys.length - 1]) {
+          filled.push(cur);
+          if (!(cur in map)) map[cur] = 0;
+          cur = addDays(cur, 7);
+        }
+      } else {
+        let cur = keys[0];
+        while (cur <= keys[keys.length - 1]) {
+          filled.push(cur);
+          if (!(cur in map)) map[cur] = 0;
+          cur = addMonths(cur, 1);
+        }
+      }
+      return filled;
+    }
+
+    function aggregate(filtered) {
+      const map = {};
+      filtered.forEach(e => {
+        let key;
+        if (timeframe === 'daily') key = e.date;
+        else if (timeframe === 'weekly') key = getWeekKey(e.date);
+        else key = e.date.slice(0, 7);
+        map[key] = (map[key] || 0) + Math.abs(e.amount);
+      });
+      const keys = fillGaps(map);
+      return { labels: keys.map(k => formatLabel(k, timeframe)), data: keys.map(k => map[k]) };
+    }
+
+    function setTimeframe(btn) {
+      document.querySelectorAll('.timeframe-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      timeframe = btn.dataset.tf;
+      const titles = { daily: 'Daily Spending', weekly: 'Weekly Spending', monthly: 'Monthly Spending' };
+      document.getElementById('spending-title').textContent = titles[timeframe];
+      updateCharts();
+    }
+
+    function updateCharts() {
+      const filtered = getFiltered();
+      const { labels, data } = aggregate(filtered);
+
+      if (spendingChart) spendingChart.destroy();
+      spendingChart = new Chart(document.getElementById('spending-chart'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Spent (Kč)',
+            data,
+            borderColor: '#4f46e5',
+            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+            pointBackgroundColor: '#4f46e5',
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, ticks: { callback: v => v + ' Kč' } },
+            x: { ticks: { maxRotation: 45 } }
+          }
+        }
+      });
+
+      const catMap = {};
+      filtered.forEach(e => {
+        const cat = e.category || 'Uncategorized';
+        catMap[cat] = (catMap[cat] || 0) + Math.abs(e.amount);
+      });
+      const catLabels = Object.keys(catMap).sort((a, b) => catMap[b] - catMap[a]);
+      const catData = catLabels.map(c => catMap[c]);
+
+      if (categoryChart) categoryChart.destroy();
+      categoryChart = new Chart(document.getElementById('category-chart'), {
+        type: 'doughnut',
+        data: {
+          labels: catLabels,
+          datasets: [{
+            data: catData,
+            backgroundColor: catColors.slice(0, catLabels.length),
+            borderWidth: 0,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { padding: 12, boxWidth: 12 } },
+            tooltip: { callbacks: { label: ctx => ctx.label + ': ' + ctx.parsed.toFixed(2) + ' Kč' } }
+          }
+        }
+      });
+    }
+
+    updateCharts();
   </script>
 </body>
 </html>
