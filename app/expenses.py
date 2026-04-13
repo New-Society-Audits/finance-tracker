@@ -9,6 +9,8 @@ Category update: changes the category assigned to a single expense (called by
                  the inline dropdown via HTMX PUT).
 """
 
+from __future__ import annotations
+
 import base64
 import csv
 import io
@@ -54,13 +56,13 @@ VALID_CATEGORIES = ["Food", "Transport", "Shopping", "Entertainment", "Health", 
 
 RECEIPT_SYSTEM_PROMPT = f"""\
 You are a receipt parser. Given a photo of a receipt, extract:
-- name: a short description of the purchase (e.g. "Grocery run at Trader Joe's")
-- amount: the total amount paid as a number (e.g. 42.50)
+- name: a short description of the purchase (e.g. "Grocery run at Albert")
+- amount: the total amount paid as a number in Czech koruna / CZK (e.g. 249.00)
 - date: the date on the receipt in YYYY-MM-DD format
 - category: one of {VALID_CATEGORIES}
 
 Respond ONLY with a JSON object, no markdown fences or extra text.
-Example: {{"name": "Coffee at Starbucks", "amount": 5.75, "date": "2026-03-15", "category": "Food"}}
+Example: {{"name": "Coffee at Costa", "amount": 89.00, "date": "2026-03-15", "category": "Food"}}
 """
 
 
@@ -177,28 +179,94 @@ async def upload_receipt(request: Request, file: UploadFile = File(...)):
 
 # ── Bank statement upload ───────────────────────────────────
 
-def parse_csv_statement(content: str) -> list[dict]:
-    """Parse a CSV bank statement into a list of transaction dicts.
+def _decode_statement_bytes(raw: bytes) -> str:
+    # Česká spořitelna exports CSV as UTF-16 LE with a BOM.
+    if raw.startswith(b"\xff\xfe") or raw.startswith(b"\xfe\xff"):
+        return raw.decode("utf-16")
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return raw.decode("cp1250", errors="replace")
 
-    Handles common column names: date, description/name/memo, amount/debit.
-    Strips currency symbols and commas from amounts.
-    """
-    transactions = []
-    reader = csv.DictReader(io.StringIO(content))
-    for row in reader:
-        # Normalize column names to lowercase for flexible matching
-        row_lower = {k.lower().strip(): v.strip() for k, v in row.items()}
-        name = row_lower.get("description", row_lower.get("name", row_lower.get("memo", "")))
-        amount_str = row_lower.get("amount", row_lower.get("debit", "0"))
-        date_str = row_lower.get("date", "")
 
+def _find_column(fieldnames: list[str], *needles: str) -> str | None:
+    for name in fieldnames:
+        low = name.lower()
+        if any(n in low for n in needles):
+            return name
+    return None
+
+
+def _parse_amount(amount_str: str) -> float | None:
+    # Strip currency symbols, regular + non-breaking spaces, narrow no-break space.
+    cleaned = (
+        amount_str.replace("Kč", "")
+        .replace("CZK", "")
+        .replace("$", "")
+        .replace("\u00a0", "")
+        .replace("\u202f", "")
+        .replace(" ", "")
+        .strip()
+    )
+    # Czech format uses comma as decimal separator (e.g. "1234,56").
+    if "," in cleaned and "." not in cleaned:
+        cleaned = cleaned.replace(",", ".")
+    else:
+        cleaned = cleaned.replace(",", "")
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def _parse_date(date_str: str) -> str | None:
+    # Accept DD.MM.YYYY, DD/MM/YYYY, or ISO YYYY-MM-DD.
+    for fmt in ("%d.%m.%Y", "%d/%m/%Y", "%Y-%m-%d"):
         try:
-            amount = abs(float(amount_str.replace(",", "").replace("$", "")))
-        except (ValueError, AttributeError):
-            continue  # Skip rows with unparseable amounts
+            return datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return None
 
-        if name and date_str:
-            transactions.append({"name": name, "amount": amount, "date": date_str})
+
+def parse_csv_statement(raw: bytes) -> list[dict]:
+    """Parse a CSV bank statement into a list of expense dicts.
+
+    Supports Česká spořitelna UTF-16 exports (Czech column names, DD.MM.YYYY
+    dates, comma decimals, NBSP thousands) as well as generic English CSVs.
+    Positive amounts are treated as income and skipped — only outgoing
+    transactions become expenses.
+    """
+    text = _decode_statement_bytes(raw)
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        return []
+
+    date_col = _find_column(reader.fieldnames, "datum", "date")
+    # "protiúčtu" = counterparty name in Česká spořitelna exports.
+    name_col = _find_column(reader.fieldnames, "protiúč", "protiuc", "description", "name", "memo")
+    amount_col = _find_column(reader.fieldnames, "částka", "castka", "amount", "debit")
+
+    if not (date_col and amount_col):
+        return []
+
+    transactions = []
+    for row in reader:
+        raw_amount = (row.get(amount_col) or "").strip()
+        signed = _parse_amount(raw_amount)
+        # Skip unparseable, zero, and incoming (positive) transactions.
+        if signed is None or signed >= 0:
+            continue
+
+        date_iso = _parse_date((row.get(date_col) or "").strip())
+        if not date_iso:
+            continue
+
+        name = (row.get(name_col) or "").strip() if name_col else ""
+        if not name:
+            name = "Bank transaction"
+
+        transactions.append({"name": name, "amount": abs(signed), "date": date_iso})
     return transactions
 
 
@@ -217,8 +285,7 @@ async def upload_statement(request: Request, file: UploadFile = File(...)):
     filename = file.filename or ""
 
     if filename.lower().endswith(".csv"):
-        text = contents.decode("utf-8", errors="replace")
-        transactions = parse_csv_statement(text)
+        transactions = parse_csv_statement(contents)
     else:
         return HTMLResponse('<div class="upload-error">Only CSV files are supported for now.</div>')
 

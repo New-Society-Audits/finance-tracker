@@ -12,10 +12,10 @@
         <path d="M9 6l6 6-6 6" stroke="#aaa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       <span class="expense-name">{{ expense.name }}</span>
-      <span class="expense-date">{{ expense.date }}</span>
+      <span class="expense-date">{{ expense.date[8:10] }}/{{ expense.date[5:7] }}/{{ expense.date[0:4] }}</span>
     </summary>
     <div class="expense-body">
-      <div class="expense-amount">${{ "%.2f"|format(expense.amount) }}</div>
+      <div class="expense-amount">{{ "%.2f"|format(expense.amount) }} Kč</div>
       <div class="category-row">
         <label class="category-label">Category</label>
         <select class="category-select"

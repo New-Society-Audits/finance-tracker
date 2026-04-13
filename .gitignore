@@ -21,6 +21,9 @@ __pycache__/
 # Uploaded files (receipts, bank statements)
 uploads/
 
+# Bank statement exports (contain personal transactions)
+*.csv
+
 # JavaScript / pnpm
 node_modules/
 .pnpm-store/
