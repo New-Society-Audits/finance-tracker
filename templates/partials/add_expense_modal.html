@@ -22,7 +22,7 @@
       <!-- Receipt upload -->
       <div class="upload-section" id="tab-receipt">
         <form id="receipt-form" hx-post="/upload/receipt" hx-target="#modal-body-content" hx-swap="innerHTML"
-              hx-encoding="multipart/form-data">
+              hx-encoding="multipart/form-data" hx-indicator="#submit-receipt" hx-disabled-elt="#submit-receipt">
           <div class="drop-zone" id="drop-zone-receipt">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 16V4m0 0l-4 4m4-4l4 4" stroke="#aaa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -36,14 +36,17 @@
             </label>
             <p class="file-name" id="file-name-receipt"></p>
           </div>
-          <button type="submit" class="upload-submit" id="submit-receipt" disabled>Upload & Process</button>
+          <button type="submit" class="upload-submit" id="submit-receipt" disabled>
+            <span class="btn-text">Upload</span>
+            <span class="btn-loading"><span class="spinner"></span> Uploading…</span>
+          </button>
         </form>
       </div>
 
       <!-- Bank statement upload -->
       <div class="upload-section hidden" id="tab-statement">
         <form id="statement-form" hx-post="/upload/statement" hx-target="#modal-body-content" hx-swap="innerHTML"
-              hx-encoding="multipart/form-data">
+              hx-encoding="multipart/form-data" hx-indicator="#submit-statement" hx-disabled-elt="#submit-statement">
           <div class="drop-zone" id="drop-zone-statement">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 16V4m0 0l-4 4m4-4l4 4" stroke="#aaa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -57,7 +60,10 @@
             </label>
             <p class="file-name" id="file-name-statement"></p>
           </div>
-          <button type="submit" class="upload-submit" id="submit-statement" disabled>Upload & Process</button>
+          <button type="submit" class="upload-submit" id="submit-statement" disabled>
+            <span class="btn-text">Upload</span>
+            <span class="btn-loading"><span class="spinner"></span> Uploading…</span>
+          </button>
         </form>
       </div>
 

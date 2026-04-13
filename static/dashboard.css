@@ -452,6 +452,19 @@ details[open] .chevron {
 
 .upload-submit:hover { background: #4338ca; }
 .upload-submit:disabled { background: #c4c0f0; cursor: not-allowed; }
+.upload-submit .btn-loading { display: none !important; }
+.upload-submit.htmx-request { background: #6366f1; cursor: wait; }
+.upload-submit.htmx-request .btn-text { display: none !important; }
+.upload-submit.htmx-request .btn-loading { display: inline-flex !important; align-items: center; gap: 8px; }
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .hidden { display: none !important; }
 
