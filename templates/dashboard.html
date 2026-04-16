@@ -82,12 +82,18 @@
             <input type="date" id="date-to" class="control-input" onchange="updateCharts()" />
           </div>
           <div class="control-row">
-            <select id="chart-category" class="control-input" onchange="updateCharts()">
-              <option value="">All categories</option>
-              {% for cat in categories %}
-              <option value="{{ cat }}">{{ cat }}</option>
-              {% endfor %}
-            </select>
+            <div class="filter-wrap">
+              <button class="filter-btn" id="chart-filter-btn" onclick="document.getElementById('chart-filter-dropdown').classList.toggle('open')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 6h18M7 12h10M11 18h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <span id="chart-filter-label">All categories</span>
+              </button>
+              <div class="filter-dropdown" id="chart-filter-dropdown">
+                <a class="filter-option active" href="#" data-cat=""
+                   onclick="selectChartFilter(this, '')">All categories</a>
+              </div>
+            </div>
           </div>
           <div class="control-row">
             <div class="timeframe-toggle">
@@ -133,14 +139,27 @@
     document.addEventListener('click', () => {
       profileDropdown.classList.remove('open');
       document.getElementById('filter-dropdown').classList.remove('open');
+      document.getElementById('chart-filter-dropdown').classList.remove('open');
     });
     document.getElementById('filter-btn').addEventListener('click', (e) => e.stopPropagation());
+    document.getElementById('chart-filter-btn').addEventListener('click', (e) => e.stopPropagation());
+
+    // Check overflow on all filter dropdowns to show scroll fade
+    function checkDropdownOverflow(dd) {
+      dd.classList.toggle('has-overflow', dd.scrollHeight > dd.clientHeight && dd.scrollTop + dd.clientHeight < dd.scrollHeight - 4);
+    }
+    document.querySelectorAll('.filter-dropdown').forEach(dd => {
+      dd.addEventListener('scroll', () => checkDropdownOverflow(dd));
+      new MutationObserver(() => {
+        if (dd.classList.contains('open')) requestAnimationFrame(() => checkDropdownOverflow(dd));
+      }).observe(dd, { attributes: true, attributeFilter: ['class'], childList: true });
+    });
 
     // ── Category filter selection ──
     // Updates the active filter label and closes the dropdown;
     // the actual filtering is handled by HTMX (hx-get on each option).
     function selectFilter(el, label) {
-      document.querySelectorAll('.filter-option').forEach(o => o.classList.remove('active'));
+      document.querySelectorAll('#filter-dropdown .filter-option').forEach(o => o.classList.remove('active'));
       el.classList.add('active');
       document.getElementById('filter-label').textContent = label;
       document.getElementById('filter-dropdown').classList.remove('open');
@@ -264,6 +283,34 @@
       document.getElementById('date-to').value = allDates[allDates.length - 1];
     }
 
+    let chartCategoryFilter = '';
+
+    function selectChartFilter(el, cat) {
+      document.querySelectorAll('#chart-filter-dropdown .filter-option').forEach(o => o.classList.remove('active'));
+      el.classList.add('active');
+      chartCategoryFilter = cat;
+      document.getElementById('chart-filter-label').textContent = cat || 'All categories';
+      document.getElementById('chart-filter-dropdown').classList.remove('open');
+      updateCharts();
+    }
+
+    function updateCategoryDropdown() {
+      const dropdown = document.getElementById('chart-filter-dropdown');
+      const relevantCats = new Set();
+      allExpenses.forEach(e => {
+        if (chartMode === 'expenses' && e.amount >= 0) return;
+        if (chartMode === 'income' && e.amount <= 0) return;
+        relevantCats.add(e.category || 'Uncategorized');
+      });
+      const sorted = [...relevantCats].sort();
+      if (!relevantCats.has(chartCategoryFilter)) {
+        chartCategoryFilter = '';
+        document.getElementById('chart-filter-label').textContent = 'All categories';
+      }
+      dropdown.innerHTML = '<a class="filter-option' + (chartCategoryFilter === '' ? ' active' : '') + '" href="#" data-cat="" onclick="selectChartFilter(this, \'\')">All categories</a>' +
+        sorted.map(c => '<a class="filter-option' + (c === chartCategoryFilter ? ' active' : '') + '" href="#" data-cat="' + c + '" onclick="selectChartFilter(this, \'' + c + '\')">' + c + '</a>').join('');
+    }
+
     function setChartMode(btn) {
       document.querySelectorAll('.chart-mode-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -274,13 +321,14 @@
         monthly: chartMode === 'income' ? 'Monthly Income' : 'Monthly Spending',
       };
       document.getElementById('spending-title').textContent = tfTitles[timeframe];
+      updateCategoryDropdown();
       updateCharts();
     }
 
     function getFiltered() {
       const from = document.getElementById('date-from').value;
       const to = document.getElementById('date-to').value;
-      const cat = document.getElementById('chart-category').value;
+      const cat = chartCategoryFilter;
       return allExpenses.filter(e => {
         if (excludedIds.has(e.id)) return false;
         if (chartMode === 'expenses' && e.amount >= 0) return false;
@@ -430,6 +478,7 @@
       });
     }
 
+    updateCategoryDropdown();
     updateCharts();
   </script>
 </body>

@@ -147,6 +147,8 @@ body {
   border: 1px solid #e8e8e8;
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  max-height: 260px;
+  overflow-y: auto;
   min-width: 150px;
   max-height: 260px;
   overflow-y: auto;
@@ -154,6 +156,11 @@ body {
 }
 
 .filter-dropdown.open { display: block; }
+
+.filter-dropdown.has-overflow {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%);
+}
 
 .filter-option {
   display: block;
