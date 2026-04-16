@@ -208,7 +208,10 @@ async def update_category(request: Request, expense_id: int):
 
     db.table("expenses").update({"category_id": category_id}).eq("id", expense_id).execute()
 
-    return HTMLResponse(status_code=200)
+    tag_content = category_name if category_name else ""
+    return HTMLResponse(
+        f'<span class="expense-category-tag" id="category-tag-{expense_id}">{tag_content}</span>'
+    )
 
 
 # ── Delete expense ─────────────────────────────────────────

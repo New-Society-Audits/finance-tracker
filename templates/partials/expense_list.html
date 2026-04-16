@@ -11,19 +11,25 @@
       <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M9 6l6 6-6 6" stroke="#aaa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <span class="expense-name">{{ expense.name }}</span>
-      <span class="expense-date">{{ expense.date[8:10] }}/{{ expense.date[5:7] }}/{{ expense.date[0:4] }}</span>
+      <div class="expense-info">
+        <span class="expense-name">{{ expense.name }}</span>
+        <span class="expense-meta">
+          <span class="expense-date">{{ expense.date[8:10] }}/{{ expense.date[5:7] }}/{{ expense.date[0:4] }}</span>
+          <span class="expense-category-tag" id="category-tag-{{ expense.id }}">{% if expense.category %}{{ expense.category }}{% endif %}</span>
+        </span>
+      </div>
+      <span class="expense-amount-preview {% if expense.amount < 0 %}amount-out{% else %}amount-in{% endif %}">
+        {{ "−" if expense.amount < 0 else "+" }}{{ "%.2f"|format(expense.amount|abs) }} Kč
+      </span>
     </summary>
     <div class="expense-body">
-      <div class="expense-amount {% if expense.amount < 0 %}amount-out{% else %}amount-in{% endif %}">
-        {{ "−" if expense.amount < 0 else "+" }}{{ "%.2f"|format(expense.amount|abs) }} Kč
-      </div>
       <div class="category-row">
         <label class="category-label">Category</label>
         <select class="category-select"
                 hx-put="/expense/{{ expense.id }}/category"
                 hx-trigger="change"
-                hx-swap="none"
+                hx-target="#category-tag-{{ expense.id }}"
+                hx-swap="outerHTML"
                 name="category">
           <option value="">— select —</option>
           {% set cats = income_categories if expense.amount > 0 else expense_categories %}
