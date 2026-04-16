@@ -351,6 +351,40 @@ details[open] .chevron {
   overflow-y: auto;
 }
 
+.chart-mode-toggle {
+  display: flex;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  overflow: hidden;
+  align-self: flex-start;
+  margin-bottom: 8px;
+}
+
+.chart-mode-btn {
+  padding: 7px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  background: #fafafa;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.chart-mode-btn:not(:last-child) {
+  border-right: 1px solid #d1d5db;
+}
+
+.chart-mode-btn.active[data-mode="expenses"] {
+  background: #4f46e5;
+  color: #fff;
+}
+
+.chart-mode-btn.active[data-mode="income"] {
+  background: #10b981;
+  color: #fff;
+}
+
 .chart-controls {
   background: #fff;
   border: 1px solid #e5e7eb;

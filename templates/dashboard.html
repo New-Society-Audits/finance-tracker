@@ -70,6 +70,10 @@
 
       <!-- Right panel: charts -->
       <section class="right-panel">
+        <div class="chart-mode-toggle">
+          <button class="chart-mode-btn active" data-mode="expenses" onclick="setChartMode(this)">Expenses</button>
+          <button class="chart-mode-btn" data-mode="income" onclick="setChartMode(this)">Income</button>
+        </div>
         <div class="chart-controls">
           <div class="control-row">
             <label class="control-label">From</label>
@@ -235,6 +239,9 @@
       'Investment': '#3b82f6',
       'Taxes': '#f97316',
       'Work': '#84cc16',
+      'Salary': '#3b82f6',
+      'Refund': '#f59e0b',
+      'Other Income': '#10b981',
       'Other': '#6b7280',
       'Uncategorized': '#d1d5db',
     };
@@ -247,6 +254,7 @@
       return fallbackColors[Math.abs(hash) % fallbackColors.length];
     }
     let timeframe = 'daily';
+    let chartMode = 'expenses';
     let spendingChart, categoryChart;
 
     // Set default date range from data
@@ -256,13 +264,27 @@
       document.getElementById('date-to').value = allDates[allDates.length - 1];
     }
 
+    function setChartMode(btn) {
+      document.querySelectorAll('.chart-mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      chartMode = btn.dataset.mode;
+      const tfTitles = {
+        daily: chartMode === 'income' ? 'Daily Income' : 'Daily Spending',
+        weekly: chartMode === 'income' ? 'Weekly Income' : 'Weekly Spending',
+        monthly: chartMode === 'income' ? 'Monthly Income' : 'Monthly Spending',
+      };
+      document.getElementById('spending-title').textContent = tfTitles[timeframe];
+      updateCharts();
+    }
+
     function getFiltered() {
       const from = document.getElementById('date-from').value;
       const to = document.getElementById('date-to').value;
       const cat = document.getElementById('chart-category').value;
       return allExpenses.filter(e => {
         if (excludedIds.has(e.id)) return false;
-        if (e.amount >= 0) return false;
+        if (chartMode === 'expenses' && e.amount >= 0) return false;
+        if (chartMode === 'income' && e.amount <= 0) return false;
         if (from && e.date < from) return false;
         if (to && e.date > to) return false;
         if (cat && (e.category || 'Uncategorized') !== cat) return false;
@@ -340,7 +362,8 @@
       document.querySelectorAll('.timeframe-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       timeframe = btn.dataset.tf;
-      const titles = { daily: 'Daily Spending', weekly: 'Weekly Spending', monthly: 'Monthly Spending' };
+      const label = chartMode === 'income' ? 'Income' : 'Spending';
+      const titles = { daily: 'Daily ' + label, weekly: 'Weekly ' + label, monthly: 'Monthly ' + label };
       document.getElementById('spending-title').textContent = titles[timeframe];
       updateCharts();
     }
@@ -355,14 +378,14 @@
         data: {
           labels,
           datasets: [{
-            label: 'Spent (Kč)',
+            label: chartMode === 'income' ? 'Income (Kč)' : 'Spent (Kč)',
             data,
-            borderColor: '#4f46e5',
-            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+            borderColor: chartMode === 'income' ? '#10b981' : '#4f46e5',
+            backgroundColor: chartMode === 'income' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(79, 70, 229, 0.1)',
             fill: true,
             tension: 0.3,
             pointRadius: 3,
-            pointBackgroundColor: '#4f46e5',
+            pointBackgroundColor: chartMode === 'income' ? '#10b981' : '#4f46e5',
           }]
         },
         options: {
