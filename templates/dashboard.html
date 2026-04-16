@@ -182,9 +182,21 @@
       }
     });
 
-    // Update charts after a delete removes an expense item
+    // Update charts after delete or category change
     document.body.addEventListener('htmx:afterSwap', function(e) {
-      if (e.detail.requestConfig && e.detail.requestConfig.verb === 'delete') {
+      const verb = e.detail.requestConfig && e.detail.requestConfig.verb;
+      if (verb === 'delete') {
+        updateCharts();
+      }
+      if (verb === 'put') {
+        const path = e.detail.requestConfig.path || '';
+        const match = path.match(/\/expense\/(\d+)\/category/);
+        if (match) {
+          const id = parseInt(match[1]);
+          const tag = document.getElementById('category-tag-' + id);
+          const exp = allExpenses.find(ex => ex.id === id);
+          if (exp) exp.category = (tag && tag.textContent.trim()) || null;
+        }
         updateCharts();
       }
     });
@@ -207,7 +219,27 @@
 
     // ── Charts ──
     const allExpenses = {{ expenses | tojson }};
-    const catColors = ['#4f46e5','#06b6d4','#f59e0b','#ef4444','#10b981','#8b5cf6','#ec4899','#6b7280'];
+    const categoryColorMap = {
+      'Food': '#ef4444',
+      'Transport': '#06b6d4',
+      'Shopping': '#f59e0b',
+      'Entertainment': '#ec4899',
+      'Health': '#10b981',
+      'Utilities': '#7c3aed',
+      'Investment': '#3b82f6',
+      'Taxes': '#f97316',
+      'Work': '#84cc16',
+      'Other': '#6b7280',
+      'Uncategorized': '#d1d5db',
+    };
+    const fallbackColors = ['#a855f7','#14b8a6','#e11d48','#84cc16','#f43f5e','#22d3ee'];
+    function getCatColor(name) {
+      if (categoryColorMap[name]) return categoryColorMap[name];
+      // Stable fallback: hash the name to pick a consistent color
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      return fallbackColors[Math.abs(hash) % fallbackColors.length];
+    }
     let timeframe = 'daily';
     let spendingChart, categoryChart;
 
@@ -353,7 +385,7 @@
           labels: catLabels,
           datasets: [{
             data: catData,
-            backgroundColor: catColors.slice(0, catLabels.length),
+            backgroundColor: catLabels.map(c => getCatColor(c)),
             borderWidth: 0,
           }]
         },
