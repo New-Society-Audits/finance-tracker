@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Personal finance tracker — upload bank statements and expenses are extracted, categorized, and listed. Single-user app with Supabase Auth.
+Personal finance tracker — upload bank statements and transactions are automatically imported, categorized, and listed. Single-user app with Supabase Auth.
 
 ## Tech Stack
 

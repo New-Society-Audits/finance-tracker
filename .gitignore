@@ -18,7 +18,7 @@ __pycache__/
 *.sqlite
 *.sqlite3
 
-# Uploaded files (receipts, bank statements)
+# Uploaded files (bank statements)
 uploads/
 
 # Bank statement exports (contain personal transactions)

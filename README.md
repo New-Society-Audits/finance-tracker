@@ -1,6 +1,6 @@
 # Finance Tracker
 
-A personal expense tracking app. Upload a receipt photo or bank statement and expenses are automatically extracted, categorized, and added to your list.
+A personal expense tracking app. Upload a bank statement and transactions are automatically imported, categorized, and added to your list.
 
 ## Tech Stack
 
@@ -52,7 +52,7 @@ app/
   auth.py          # Login/logout routes
   dashboard.py     # Dashboard and expense list endpoints
   database.py      # Supabase client
-  expenses.py      # Receipt/statement upload, category updates
+  expenses.py      # Bank statement import, category updates
 templates/
   login.html
   dashboard.html
@@ -86,5 +86,4 @@ Set these environment variables in the Render dashboard:
 - Single-user login with session auth
 - Expense list with expandable details and category assignment
 - Filter expenses by category
-- Receipt image upload (extraction via AI — in progress)
 - CSV bank statement import with deduplication
