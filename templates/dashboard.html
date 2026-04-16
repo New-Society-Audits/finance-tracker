@@ -194,8 +194,11 @@
         if (match) {
           const id = parseInt(match[1]);
           const tag = document.getElementById('category-tag-' + id);
+          const catName = (tag && tag.textContent.trim()) || null;
           const exp = allExpenses.find(ex => ex.id === id);
-          if (exp) exp.category = (tag && tag.textContent.trim()) || null;
+          if (exp) exp.category = catName;
+          const li = document.getElementById('expense-' + id);
+          if (li) li.classList.toggle('uncategorized', !catName);
         }
         updateCharts();
       }

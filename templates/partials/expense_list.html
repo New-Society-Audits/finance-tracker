@@ -5,7 +5,7 @@
 <li class="empty-state">No expenses yet. Hit + to add one.</li>
 {% endif %}
 {% for expense in expenses %}
-<li class="expense-item" id="expense-{{ expense.id }}">
+<li class="expense-item {% if not expense.category %}uncategorized{% endif %}" id="expense-{{ expense.id }}">
   <details class="expense-details">
     <summary class="expense-summary">
       <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
