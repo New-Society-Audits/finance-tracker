@@ -43,7 +43,7 @@ app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 # Register route groups
 app.include_router(auth_router)       # /login, /logout
 app.include_router(dashboard_router)  # /, /modal/add-expense, /partials/expense-list
-app.include_router(expenses_router)   # /upload/receipt, /upload/statement, /expense/{id}/category
+app.include_router(expenses_router)   # /upload/statement, /expense/{id}/category
 
 
 if __name__ == "__main__":

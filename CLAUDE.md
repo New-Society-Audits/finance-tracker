@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Personal finance tracker — upload receipts or bank statements and expenses are extracted, categorized, and listed. Single-user app with Supabase Auth.
+Personal finance tracker — upload bank statements and expenses are extracted, categorized, and listed. Single-user app with Supabase Auth.
 
 ## Tech Stack
 
@@ -29,7 +29,7 @@ uv run main.py
 - `main.py` — FastAPI app setup, middleware, router registration
 - `app/auth.py` — Login/logout routes (Supabase Auth)
 - `app/dashboard.py` — Dashboard, expense list, add-expense modal
-- `app/expenses.py` — Receipt/statement upload, category updates
+- `app/expenses.py` — Bank statement import, category updates
 - `app/database.py` — Supabase client singletons (anon + service-role)
 - `templates/` — Jinja2 templates; `partials/` subdir for HTMX fragments
 - `static/` — CSS files
