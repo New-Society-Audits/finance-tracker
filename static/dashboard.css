@@ -264,8 +264,31 @@ details[open] .chevron {
 .amount-out { color: #dc2626; }
 .amount-in { color: #16a34a; }
 
-.delete-btn {
+.expense-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-top: 12px;
+}
+
+.exclude-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4f46e5;
+  background: none;
+  border: 1px solid #c7d2fe;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.exclude-btn:hover { background: #eef2ff; }
+
+.expense-item.excluded {
+  opacity: 0.45;
+}
+
+.delete-btn {
   padding: 6px 14px;
   font-size: 13px;
   font-weight: 500;

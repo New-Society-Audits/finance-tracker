@@ -157,6 +157,54 @@
       }, 3000);
     }
 
+    // ── Exclude from chart ──
+    const EXCLUDED_KEY = 'excludedFromChart';
+    let excludedIds = new Set(JSON.parse(localStorage.getItem(EXCLUDED_KEY) || '[]'));
+
+    function saveExcluded() {
+      localStorage.setItem(EXCLUDED_KEY, JSON.stringify([...excludedIds]));
+    }
+
+    function applyExcludedState() {
+      excludedIds.forEach(id => {
+        const li = document.getElementById('expense-' + id);
+        if (li) li.classList.add('excluded');
+        const btn = document.getElementById('exclude-btn-' + id);
+        if (btn) btn.textContent = 'Include in chart';
+      });
+    }
+    applyExcludedState();
+
+    // Re-apply excluded styling after HTMX swaps (e.g. filter changes)
+    document.body.addEventListener('htmx:afterSettle', function(e) {
+      if (e.detail.target && e.detail.target.id === 'expense-list') {
+        applyExcludedState();
+      }
+    });
+
+    // Update charts after a delete removes an expense item
+    document.body.addEventListener('htmx:afterSwap', function(e) {
+      if (e.detail.requestConfig && e.detail.requestConfig.verb === 'delete') {
+        updateCharts();
+      }
+    });
+
+    function toggleExclude(id) {
+      const li = document.getElementById('expense-' + id);
+      if (excludedIds.has(id)) {
+        excludedIds.delete(id);
+        if (li) li.classList.remove('excluded');
+      } else {
+        excludedIds.add(id);
+        if (li) li.classList.add('excluded');
+      }
+      saveExcluded();
+      updateCharts();
+      // Update button text
+      const btn = document.getElementById('exclude-btn-' + id);
+      if (btn) btn.textContent = excludedIds.has(id) ? 'Include in chart' : 'Exclude from chart';
+    }
+
     // ── Charts ──
     const allExpenses = {{ expenses | tojson }};
     const catColors = ['#4f46e5','#06b6d4','#f59e0b','#ef4444','#10b981','#8b5cf6','#ec4899','#6b7280'];
@@ -175,6 +223,7 @@
       const to = document.getElementById('date-to').value;
       const cat = document.getElementById('chart-category').value;
       return allExpenses.filter(e => {
+        if (excludedIds.has(e.id)) return false;
         if (e.amount >= 0) return false;
         if (from && e.date < from) return false;
         if (to && e.date > to) return false;

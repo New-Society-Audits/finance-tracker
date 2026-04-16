@@ -5,7 +5,7 @@
 <li class="empty-state">No expenses yet. Hit + to add one.</li>
 {% endif %}
 {% for expense in expenses %}
-<li class="expense-item">
+<li class="expense-item" id="expense-{{ expense.id }}">
   <details class="expense-details">
     <summary class="expense-summary">
       <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -38,7 +38,10 @@
           {% endfor %}
         </select>
       </div>
-      <button class="delete-btn" onclick="confirmDelete(this, {{ expense.id }})">Delete</button>
+      <div class="expense-actions">
+        <button class="exclude-btn" id="exclude-btn-{{ expense.id }}" onclick="toggleExclude({{ expense.id }})">Exclude from chart</button>
+        <button class="delete-btn" onclick="confirmDelete(this, {{ expense.id }})">Delete</button>
+      </div>
     </div>
   </details>
 </li>
