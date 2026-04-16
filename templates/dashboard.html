@@ -97,9 +97,11 @@
           <h3 class="chart-title" id="spending-title">Daily Spending</h3>
           <canvas id="spending-chart"></canvas>
         </div>
-        <div class="chart-container">
+        <div class="chart-container chart-container--doughnut">
           <h3 class="chart-title">By Category</h3>
-          <canvas id="category-chart"></canvas>
+          <div class="doughnut-wrap">
+            <canvas id="category-chart"></canvas>
+          </div>
         </div>
       </section>
 
@@ -221,6 +223,7 @@
     }
 
     // ── Charts ──
+    Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     const allExpenses = {{ expenses | tojson }};
     const categoryColorMap = {
       'Food': '#ef4444',
@@ -365,10 +368,11 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          layout: { padding: { bottom: 8 } },
           plugins: { legend: { display: false } },
           scales: {
-            y: { beginAtZero: true, ticks: { callback: v => v + ' Kč' } },
-            x: { ticks: { maxRotation: 45 } }
+            y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('cs-CZ') + ' Kč', font: { size: 11 } } },
+            x: { ticks: { maxRotation: 45, font: { size: 11 } } }
           }
         }
       });
@@ -394,7 +398,7 @@
         },
         options: {
           responsive: true,
-          maintainAspectRatio: false,
+          maintainAspectRatio: true,
           plugins: {
             legend: { position: 'bottom', labels: { padding: 12, boxWidth: 12 } },
             tooltip: { callbacks: { label: ctx => ctx.label + ': ' + ctx.parsed.toFixed(2) + ' Kč' } }
