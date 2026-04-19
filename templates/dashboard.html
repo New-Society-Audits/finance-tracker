@@ -184,6 +184,13 @@
     function confirmDelete(btn, id) {
       if (btn.dataset.confirm) {
         htmx.ajax('DELETE', '/expense/' + id, {target: btn.closest('.expense-item'), swap: 'outerHTML'});
+        // Optimistic local update: strip from the chart dataset immediately
+        // rather than waiting for htmx:afterSwap (which doesn't fire reliably
+        // when outerHTML swap removes the target element itself).
+        const idx = allExpenses.findIndex(ex => ex.id === id);
+        if (idx !== -1) allExpenses.splice(idx, 1);
+        updateCategoryDropdown();
+        updateCharts();
         return;
       }
       btn.dataset.confirm = '1';
@@ -227,9 +234,6 @@
     // Update charts after delete or category change
     document.body.addEventListener('htmx:afterSwap', function(e) {
       const verb = e.detail.requestConfig && e.detail.requestConfig.verb;
-      if (verb === 'delete') {
-        updateCharts();
-      }
       if (verb === 'put') {
         const path = e.detail.requestConfig.path || '';
         const match = path.match(/\/expense\/(\d+)\/category/);
