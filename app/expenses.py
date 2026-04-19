@@ -162,10 +162,27 @@ async def upload_statement(request: Request, file: UploadFile = File(...)):
         )
         if existing.data:
             continue
+
+        prior_q = (
+            db.table("expenses")
+            .select("category_id")
+            .eq("name", txn["name"])
+            .not_.is_("category_id", "null")
+        )
+        # Only match priors with the same sign — a refund (positive) should not
+        # pass its category to a later charge (negative) with the same name.
+        if txn["amount"] >= 0:
+            prior_q = prior_q.gte("amount", 0)
+        else:
+            prior_q = prior_q.lt("amount", 0)
+        prior_cats = {row["category_id"] for row in prior_q.execute().data}
+        category_id = prior_cats.pop() if len(prior_cats) == 1 else None
+
         db.table("expenses").insert({
             "name": txn["name"],
             "amount": txn["amount"],
             "date": txn["date"],
+            "category_id": category_id,
         }).execute()
         inserted += 1
 
