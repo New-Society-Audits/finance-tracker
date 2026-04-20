@@ -11,8 +11,6 @@ from __future__ import annotations
 
 import csv
 import io
-import logging
-import os
 from datetime import datetime
 
 from fastapi import APIRouter, Request, UploadFile, File
@@ -20,8 +18,6 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from app.database import get_client
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")

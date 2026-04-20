@@ -38,8 +38,3 @@ def get_auth_client() -> Client:
     if _auth_client is None:
         _auth_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
     return _auth_client
-
-
-def init_db() -> None:
-    """No-op — tables are managed via SQL migrations in the Supabase dashboard."""
-    pass

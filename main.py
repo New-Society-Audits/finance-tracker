@@ -6,7 +6,6 @@ and starts the dev server when run directly.
 """
 
 import os
-from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -17,22 +16,13 @@ import uvicorn
 from app.auth import router as auth_router
 from app.dashboard import router as dashboard_router
 from app.expenses import router as expenses_router
-from app.database import init_db
 
 load_dotenv()
 
 # Used to sign session cookies — read from env for security
 SECRET_KEY = os.environ.get("SESSION_SECRET", "change-this-before-deploying")
 
-
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    """Run one-time startup tasks (currently a no-op kept for future use)."""
-    init_db()
-    yield
-
-
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 
 # Serve CSS and other static assets from /static
 app.mount("/static", StaticFiles(directory="static"), name="static")

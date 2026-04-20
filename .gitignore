@@ -13,11 +13,6 @@ __pycache__/
 .env.*
 !.env.example
 
-# SQLite database (your local data, not code)
-*.db
-*.sqlite
-*.sqlite3
-
 # Uploaded files (bank statements)
 uploads/
 

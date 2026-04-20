@@ -35,7 +35,7 @@ SUPABASE_SECRET_KEY=your_secret_key
 
 ### Initialize the database
 
-Run the migration in `migrations/001_initial_schema.sql` against your Supabase project's SQL Editor. This creates the `users`, `categories`, and `expenses` tables and seeds default data.
+Run the migrations in `migrations/` against your Supabase project's SQL Editor in order. They create the `categories` and `expenses` tables and seed default categories.
 
 ### Run the app
 
