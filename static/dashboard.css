@@ -235,6 +235,15 @@ body {
   animation: flash-red 1.5s ease-in-out infinite;
 }
 
+.expense-item.highlighted {
+  animation: flash-blue 2.5s ease-in-out 1 !important;
+}
+
+@keyframes flash-blue {
+  0%, 100% { background: #fff; }
+  50% { background: rgba(79, 70, 229, 0.28); }
+}
+
 @keyframes flash-red {
   0%, 100% { background: #fff; }
   50% { background: rgba(239, 68, 68, 0.2); }

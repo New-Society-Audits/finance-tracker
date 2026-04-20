@@ -418,7 +418,46 @@
         map[key] = (map[key] || 0) + Math.abs(e.amount);
       });
       const keys = fillGaps(map);
-      return { labels: keys.map(k => formatLabel(k, timeframe)), data: keys.map(k => map[k]) };
+      return { labels: keys.map(k => formatLabel(k, timeframe)), data: keys.map(k => map[k]), keys };
+    }
+
+    function rangeForKey(key, tf) {
+      if (tf === 'monthly') {
+        const end = new Date(key + '-01');
+        end.setMonth(end.getMonth() + 1);
+        end.setDate(0);
+        return { start: key + '-01', end: end.toISOString().slice(0, 10) };
+      }
+      if (tf === 'weekly') return { start: key, end: addDays(key, 6) };
+      return { start: key, end: key };
+    }
+
+    function highlightForKey(key, tf) {
+      const { start, end } = rangeForKey(key, tf);
+      document.querySelectorAll('.expense-item.highlighted').forEach(el => el.classList.remove('highlighted'));
+
+      const matches = allExpenses
+        .filter(e => e.date >= start && e.date <= end)
+        .map(e => document.getElementById('expense-' + e.id))
+        .filter(el => el && el.offsetParent !== null);
+
+      if (matches.length) {
+        matches[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        matches.forEach(el => el.classList.add('highlighted'));
+        setTimeout(() => matches.forEach(el => el.classList.remove('highlighted')), 2500);
+        return;
+      }
+
+      // Empty day — scroll to the nearest visible expense by date, no highlight.
+      const target = new Date(start).getTime();
+      let best = null, bestDiff = Infinity;
+      allExpenses.forEach(e => {
+        const li = document.getElementById('expense-' + e.id);
+        if (!li || li.offsetParent === null) return;
+        const diff = Math.abs(new Date(e.date).getTime() - target);
+        if (diff < bestDiff) { bestDiff = diff; best = li; }
+      });
+      if (best) best.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     function setTimeframe(btn) {
@@ -433,7 +472,8 @@
 
     function updateCharts() {
       const filtered = getFiltered();
-      const { labels, data } = aggregate(filtered);
+      const { labels, data, keys } = aggregate(filtered);
+      const clickedTf = timeframe;
 
       if (spendingChart) spendingChart.destroy();
       spendingChart = new Chart(document.getElementById('spending-chart'), {
@@ -459,6 +499,13 @@
           scales: {
             y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('cs-CZ') + ' Kč', font: { size: 11 } } },
             x: { ticks: { maxRotation: 45, font: { size: 11 } } }
+          },
+          onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+          onClick: (e) => {
+            const pts = spendingChart.getElementsAtEventForMode(e, 'index', { intersect: false }, true);
+            if (!pts.length) return;
+            const key = keys[pts[0].index];
+            if (key) highlightForKey(key, clickedTf);
           }
         }
       });
