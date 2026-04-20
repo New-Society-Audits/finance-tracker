@@ -18,17 +18,18 @@ templates = Jinja2Templates(directory="templates")
 
 def _require_auth(request: Request):
     """Redirect to login if the user has no active session."""
-    if not request.session.get("user"):
+    if not request.session.get("user_id"):
         return RedirectResponse(url="/login", status_code=303)
     return None
 
 
-def _get_expenses_and_categories():
-    """Fetch all expenses (joined with category name) and the category list."""
+def _get_expenses_and_categories(user_id: str):
+    """Fetch this user's expenses (joined with category name) and the shared category list."""
     db = get_client()
     expenses = (
         db.table("expenses")
         .select("id, name, amount, date, categories(name)")
+        .eq("user_id", user_id)
         .order("date", desc=True)
         .execute()
         .data
@@ -59,7 +60,8 @@ def dashboard(request: Request):
     if redirect:
         return redirect
 
-    expenses, expense_categories, income_categories = _get_expenses_and_categories()
+    user_id = request.session["user_id"]
+    expenses, expense_categories, income_categories = _get_expenses_and_categories(user_id)
     all_categories = expense_categories + income_categories
     return templates.TemplateResponse(
         "dashboard.html",
@@ -94,9 +96,15 @@ def expense_list_partial(request: Request, category: str = ""):
     if redirect:
         return redirect
 
+    user_id = request.session["user_id"]
     db = get_client()
 
-    query = db.table("expenses").select("id, name, amount, date, categories(name)").order("date", desc=True)
+    query = (
+        db.table("expenses")
+        .select("id, name, amount, date, categories(name)")
+        .eq("user_id", user_id)
+        .order("date", desc=True)
+    )
     if category:
         query = query.eq("categories.name", category)
 

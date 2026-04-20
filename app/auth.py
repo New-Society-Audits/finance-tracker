@@ -1,8 +1,8 @@
 """
-Authentication routes: login page, credential check, and logout.
+Authentication routes: login, signup, and logout.
 
 Uses Supabase Auth (email/password) for authentication.
-On success the user's email is stored in the session cookie.
+On success the user's id and email are stored in the session cookie.
 """
 
 from fastapi import APIRouter, Form, Request
@@ -18,8 +18,9 @@ templates = Jinja2Templates(directory="templates")
 
 @router.get("/login")
 def login_page(request: Request):
-    """Render the login form."""
-    return templates.TemplateResponse("login.html", {"request": request})
+    """Render the login form, consuming any one-shot flash message from signup."""
+    info = request.session.pop("flash_info", None)
+    return templates.TemplateResponse("login.html", {"request": request, "info": info})
 
 
 @router.post("/login")
@@ -36,8 +37,39 @@ def login(request: Request, email: str = Form(...), password: str = Form(...)):
             status_code=401,
         )
 
-    # Store the email in the signed session cookie
     request.session["user"] = response.user.email
+    request.session["user_id"] = response.user.id
+    return RedirectResponse(url="/", status_code=303)
+
+
+@router.get("/signup")
+def signup_page(request: Request):
+    """Render the signup form."""
+    return templates.TemplateResponse("signup.html", {"request": request})
+
+
+@router.post("/signup")
+def signup(request: Request, email: str = Form(...), password: str = Form(...)):
+    """Create a new Supabase Auth user and sign them in."""
+    try:
+        response = get_auth_client().auth.sign_up(
+            {"email": email, "password": password}
+        )
+    except AuthApiError as e:
+        return templates.TemplateResponse(
+            "signup.html",
+            {"request": request, "error": e.message or "Could not create account."},
+            status_code=400,
+        )
+
+    # If email confirmation is enabled in Supabase, there may be no session yet.
+    # Send the user to the login page with a one-shot flash message.
+    if not response.session:
+        request.session["flash_info"] = "Check your email to confirm your account, then sign in."
+        return RedirectResponse(url="/login", status_code=303)
+
+    request.session["user"] = response.user.email
+    request.session["user_id"] = response.user.id
     return RedirectResponse(url="/", status_code=303)
 
 

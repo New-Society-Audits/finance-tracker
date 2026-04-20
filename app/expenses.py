@@ -25,7 +25,7 @@ templates = Jinja2Templates(directory="templates")
 
 def _require_auth(request: Request):
     """Return a 401 response if the user has no active session."""
-    if not request.session.get("user"):
+    if not request.session.get("user_id"):
         return HTMLResponse("Unauthorized", status_code=401)
     return None
 
@@ -133,6 +133,8 @@ async def upload_statement(request: Request, file: UploadFile = File(...)):
     if auth:
         return auth
 
+    user_id = request.session["user_id"]
+
     contents = await file.read()
     filename = file.filename or ""
 
@@ -147,10 +149,11 @@ async def upload_statement(request: Request, file: UploadFile = File(...)):
     db = get_client()
     inserted = 0
     for txn in transactions:
-        # Dedup: skip if an expense with the same name, amount, and date exists
+        # Dedup: skip if this user already has an expense with the same name, amount, and date
         existing = (
             db.table("expenses")
             .select("id")
+            .eq("user_id", user_id)
             .eq("name", txn["name"])
             .eq("amount", txn["amount"])
             .eq("date", txn["date"])
@@ -162,6 +165,7 @@ async def upload_statement(request: Request, file: UploadFile = File(...)):
         prior_q = (
             db.table("expenses")
             .select("category_id")
+            .eq("user_id", user_id)
             .eq("name", txn["name"])
             .not_.is_("category_id", "null")
         )
@@ -175,6 +179,7 @@ async def upload_statement(request: Request, file: UploadFile = File(...)):
         category_id = prior_cats.pop() if len(prior_cats) == 1 else None
 
         db.table("expenses").insert({
+            "user_id": user_id,
             "name": txn["name"],
             "amount": txn["amount"],
             "date": txn["date"],
@@ -209,6 +214,8 @@ async def update_category(request: Request, expense_id: int):
     if auth:
         return auth
 
+    user_id = request.session["user_id"]
+
     form = await request.form()
     category_name = form.get("category", "")
 
@@ -219,7 +226,13 @@ async def update_category(request: Request, expense_id: int):
     else:
         category_id = None
 
-    db.table("expenses").update({"category_id": category_id}).eq("id", expense_id).execute()
+    (
+        db.table("expenses")
+        .update({"category_id": category_id})
+        .eq("id", expense_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
 
     tag_content = category_name if category_name else ""
     return HTMLResponse(
@@ -235,7 +248,15 @@ async def delete_expense(request: Request, expense_id: int):
     if auth:
         return auth
 
+    user_id = request.session["user_id"]
+
     db = get_client()
-    db.table("expenses").delete().eq("id", expense_id).execute()
+    (
+        db.table("expenses")
+        .delete()
+        .eq("id", expense_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
 
     return HTMLResponse("")

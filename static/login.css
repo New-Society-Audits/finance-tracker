@@ -73,6 +73,31 @@ input:focus { border-color: #4f46e5; }
   margin-bottom: 16px;
 }
 
+.info {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.alt-action {
+  text-align: center;
+  font-size: 13px;
+  color: #666;
+  margin-top: 20px;
+}
+
+.alt-action a {
+  color: #4f46e5;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.alt-action a:hover { text-decoration: underline; }
+
 button {
   width: 100%;
   padding: 11px;

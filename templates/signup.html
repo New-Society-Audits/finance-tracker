@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Finance Tracker — Login</title>
+  <title>Finance Tracker — Sign up</title>
   <link rel="stylesheet" href="/static/login.css" />
 </head>
 <body>
   <div class="card">
     <div class="logo">
-      <!-- simple wallet icon -->
       <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect width="40" height="40" rx="10" fill="#4f46e5"/>
         <path d="M10 15a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V15Z" stroke="#fff" stroke-width="1.5"/>
@@ -17,7 +16,7 @@
         <path d="M10 18h20" stroke="#fff" stroke-width="1.5"/>
       </svg>
       <h1>Finance Tracker</h1>
-      <p>Sign in to your account</p>
+      <p>Create your account</p>
     </div>
 
     {% if error %}
@@ -27,19 +26,19 @@
     <div class="info">{{ info }}</div>
     {% endif %}
 
-    <form method="post" action="/login">
+    <form method="post" action="/signup">
       <div class="field">
         <label for="email">Email</label>
         <input id="email" name="email" type="email" autocomplete="email" required />
       </div>
       <div class="field">
         <label for="password">Password</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" required />
+        <input id="password" name="password" type="password" autocomplete="new-password" minlength="6" required />
       </div>
-      <button type="submit">Sign in</button>
+      <button type="submit">Create account</button>
     </form>
 
-    <p class="alt-action">Don't have an account? <a href="/signup">Sign up</a></p>
+    <p class="alt-action">Already have an account? <a href="/login">Sign in</a></p>
   </div>
 </body>
 </html>
