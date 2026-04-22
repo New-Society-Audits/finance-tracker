@@ -32,40 +32,184 @@ def _require_auth(request: Request):
 
 # ── Bank statement upload ───────────────────────────────────
 
+# Column-name vocabulary. Czech banks (ČS, ČSOB, KB, Raiffeisen, Fio, mBank,
+# Air Bank, Moneta) all ship slightly different headers, sometimes with and
+# sometimes without diacritics — match on substring so either form works.
+_DATE_KEYWORDS = ("datum", "date")
+# When a statement has several date columns, prefer the one that reflects when
+# money actually moved (posting / debit / credit) over due or value date.
+_DATE_PREFERENCE = (
+    "zaúčt", "zauct",
+    "odepsán", "odepsan", "připsán", "pripsan",
+    "provedení", "proveden",
+    "book", "process", "posting",
+)
+_AMOUNT_KEYWORDS = ("částka", "castka", "amount", "objem", "suma", "hodnota")
+# Some exports (older KB, ČSOB statement CSVs) split outflows and inflows.
+_DEBIT_KEYWORDS = ("vrub", "výdaj", "vydaj", "debit")
+_CREDIT_KEYWORDS = ("prospěch", "prospech", "příjem", "prijem", "credit")
+# Name-column tiers. Banks disagree about which field holds the useful label:
+# card payments put the merchant in Popis/Poznámka; transfers put a party in
+# "Název protistrany"; Fio often leaves "Zpráva pro příjemce" blank and puts
+# the card merchant in "Poznámka". We collect every matching column ordered
+# by tier and, per row, pick the first non-empty value.
+_NAME_KEYWORD_TIERS = (
+    # Tier 1: authoritative identifiers — counterparty name, explicit description,
+    # message-to-recipient. These tend to be stable across re-imports.
+    ("název protistrany", "nazev protistrany",
+     "název protiúčtu", "nazev protiuctu",
+     "popis", "description",
+     "zpráva pro příjemce", "zprava pro prijemce",
+     "merchant", "payee", "beneficiary", "memo"),
+    # Tier 2: personal notes and purpose — Fio card payments land here.
+    ("účel", "ucel", "purpose",
+     "poznámka", "poznamka", "note",
+     "zpráva pro mě", "zprava pro me",
+     "zpráva", "zprava", "message"),
+    # Tier 3: transaction type / category — last meaningful fallback.
+    ("typ", "druh", "type", "kategorie", "category"),
+    # Tier 4: counter-account number / IBAN — not human-friendly, but still
+    # better than a generic "Bank transaction" placeholder.
+    ("protiúč", "protiuc", "protistrana", "protistrany", "iban protistrany"),
+)
+
+
 def _decode_statement_bytes(raw: bytes) -> str:
-    # Česká spořitelna exports CSV as UTF-16 LE with a BOM.
-    if raw.startswith(b"\xff\xfe") or raw.startswith(b"\xfe\xff"):
-        return raw.decode("utf-16")
+    """Decode a statement blob using whichever encoding actually works.
+
+    Czech banks export in a mix of UTF-16 LE (Česká spořitelna), CP1250 (older
+    KB/ČSOB) and UTF-8 (most newer exports). BOMs first, then a null-byte
+    heuristic for BOM-less UTF-16, then each candidate encoding in turn.
+    """
+    if raw.startswith(b"\xff\xfe"):
+        return raw.decode("utf-16-le").lstrip("\ufeff")
+    if raw.startswith(b"\xfe\xff"):
+        return raw.decode("utf-16-be").lstrip("\ufeff")
+    sample = raw[:2000]
+    if sample and sample.count(b"\x00") > len(sample) // 3:
+        try:
+            return raw.decode("utf-16-le")
+        except UnicodeDecodeError:
+            pass
+    for enc in ("utf-8-sig", "cp1250", "iso-8859-2"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+
+def _detect_delimiter(sample: str) -> str:
+    """Pick the most likely column delimiter — Czech banks usually use ';'."""
     try:
-        return raw.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        return raw.decode("cp1250", errors="replace")
+        return csv.Sniffer().sniff(sample, delimiters=";,\t|").delimiter
+    except csv.Error:
+        pass
+    lines = [l for l in sample.splitlines() if l.strip()]
+    counts = {d: sum(l.count(d) for l in lines) for d in (";", ",", "\t", "|")}
+    best = max(counts, key=counts.get)
+    return best if counts[best] > 0 else ","
+
+
+def _find_header_row(text: str, delimiter: str) -> int | None:
+    """Index of the first row that looks like a CSV header.
+
+    Bank statements commonly start with preamble rows (account number, IBAN,
+    period) before the real header. Scan until we find a row mentioning both
+    a date-like and an amount-like column.
+    """
+    reader = csv.reader(io.StringIO(text), delimiter=delimiter)
+    amount_like = _AMOUNT_KEYWORDS + _DEBIT_KEYWORDS + _CREDIT_KEYWORDS
+    for idx, row in enumerate(reader):
+        if idx > 50:
+            break
+        if len(row) < 2:
+            continue
+        lowers = [(c or "").strip().lower() for c in row]
+        has_date = any(any(k in c for k in _DATE_KEYWORDS) for c in lowers)
+        has_amount = any(any(k in c for k in amount_like) for c in lowers)
+        if has_date and has_amount:
+            return idx
+    return None
 
 
 def _find_column(fieldnames: list[str], *needles: str) -> str | None:
     for name in fieldnames:
+        if not name:
+            continue
         low = name.lower()
         if any(n in low for n in needles):
             return name
     return None
 
 
+def _find_date_column(fieldnames: list[str]) -> str | None:
+    candidates = [n for n in fieldnames if n and any(k in n.lower() for k in _DATE_KEYWORDS)]
+    if not candidates:
+        return None
+    for marker in _DATE_PREFERENCE:
+        for name in candidates:
+            if marker in name.lower():
+                return name
+    return candidates[0]
+
+
+def _find_name_columns(fieldnames: list[str]) -> list[str]:
+    """Columns to try for a human-readable label, ordered by tier then fieldname order.
+
+    Returning a list (not a single column) lets us fall back per row — an
+    empty Popis on a card payment defers to Poznámka, and so on.
+    """
+    result: list[str] = []
+    seen: set[str] = set()
+    for tier in _NAME_KEYWORD_TIERS:
+        for name in fieldnames:
+            if not name or name in seen:
+                continue
+            low = name.lower()
+            if any(k in low for k in tier):
+                result.append(name)
+                seen.add(name)
+    return result
+
+
+def _row_name(row: dict, name_cols: list[str]) -> str:
+    for col in name_cols:
+        val = (row.get(col) or "").strip()
+        if _is_meaningful_label(val):
+            return val
+    return "Bank transaction"
+
+
+def _is_meaningful_label(val: str) -> bool:
+    """Reject empty strings and pure-numeric codes as labels.
+
+    Tier 3/4 fields often hold codes ("Typ"="0", an IBAN, a variable symbol)
+    for rows where no real description exists. Those are worse than the
+    "Bank transaction" fallback, so skip them and keep looking.
+    """
+    if not val:
+        return False
+    alnum = "".join(ch for ch in val if ch.isalnum())
+    return bool(alnum) and not alnum.isdigit()
+
+
 def _parse_amount(amount_str: str) -> float | None:
-    # Strip currency symbols, regular + non-breaking spaces, narrow no-break space.
-    cleaned = (
-        amount_str.replace("Kč", "")
-        .replace("CZK", "")
-        .replace("$", "")
-        .replace("\u00a0", "")
-        .replace("\u202f", "")
-        .replace(" ", "")
-        .strip()
-    )
-    # Czech format uses comma as decimal separator (e.g. "1234,56").
-    if "," in cleaned and "." not in cleaned:
+    cleaned = amount_str
+    for sym in ("Kč", "CZK", "EUR", "USD", "GBP", "€", "$", "£"):
+        cleaned = cleaned.replace(sym, "")
+    # Strip regular + non-breaking + narrow no-break spaces (thousands sep).
+    cleaned = cleaned.replace("\u00a0", "").replace("\u202f", "").replace(" ", "").strip()
+    if not cleaned:
+        return None
+    # Mixed separators ("1.234,56" EU or "1,234.56" US): whichever is last is decimal.
+    if "," in cleaned and "." in cleaned:
+        if cleaned.rindex(",") > cleaned.rindex("."):
+            cleaned = cleaned.replace(".", "").replace(",", ".")
+        else:
+            cleaned = cleaned.replace(",", "")
+    elif "," in cleaned:
         cleaned = cleaned.replace(",", ".")
-    else:
-        cleaned = cleaned.replace(",", "")
     try:
         return float(cleaned)
     except ValueError:
@@ -73,40 +217,72 @@ def _parse_amount(amount_str: str) -> float | None:
 
 
 def _parse_date(date_str: str) -> str | None:
-    # Accept DD.MM.YYYY, DD/MM/YYYY, or ISO YYYY-MM-DD.
-    for fmt in ("%d.%m.%Y", "%d/%m/%Y", "%Y-%m-%d"):
+    s = date_str.strip()
+    if not s:
+        return None
+    # Drop a trailing time component ("15.03.2026 10:22" or ISO "...T...").
+    s = s.split(" ")[0].split("T")[0]
+    for fmt in ("%d.%m.%Y", "%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "%Y/%m/%d",
+                "%d.%m.%y", "%d/%m/%y"):
         try:
-            return datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
+            return datetime.strptime(s, fmt).strftime("%Y-%m-%d")
         except ValueError:
             continue
     return None
 
 
-def parse_csv_statement(raw: bytes) -> list[dict]:
-    """Parse a CSV bank statement into a list of expense dicts.
+def _row_amount(row: dict, amount_col: str | None,
+                debit_col: str | None, credit_col: str | None) -> float | None:
+    """Signed amount from a row, combining split debit/credit columns if needed."""
+    if amount_col:
+        return _parse_amount((row.get(amount_col) or "").strip())
+    debit = _parse_amount((row.get(debit_col) or "").strip()) if debit_col else None
+    credit = _parse_amount((row.get(credit_col) or "").strip()) if credit_col else None
+    if credit:
+        return abs(credit)
+    if debit:
+        # Split-column exports store debit as a positive magnitude; re-sign it.
+        return -abs(debit)
+    return None
 
-    Supports Česká spořitelna UTF-16 exports (Czech column names, DD.MM.YYYY
-    dates, comma decimals, NBSP thousands) as well as generic English CSVs.
-    Positive amounts are treated as income and skipped — only outgoing
-    transactions become expenses.
+
+def parse_csv_statement(raw: bytes) -> list[dict]:
+    """Parse a CSV bank statement into a list of {name, amount, date} dicts.
+
+    Tolerates quirks found across Czech bank exports: UTF-16/CP1250/UTF-8
+    encodings, comma/semicolon/tab delimiters, preamble rows before the real
+    header, Czech column names with or without diacritics, DD.MM.YYYY dates,
+    comma decimal separators, NBSP thousands separators, and split
+    debit/credit columns. Negative amounts = outflows, positive = inflows.
     """
     text = _decode_statement_bytes(raw)
-    reader = csv.DictReader(io.StringIO(text))
+    if not text.strip():
+        return []
+
+    sample = "\n".join(text.splitlines()[:40])
+    delimiter = _detect_delimiter(sample)
+
+    header_idx = _find_header_row(text, delimiter)
+    if header_idx is None:
+        return []
+
+    body = "\n".join(text.splitlines()[header_idx:])
+    reader = csv.DictReader(io.StringIO(body), delimiter=delimiter)
     if not reader.fieldnames:
         return []
 
-    date_col = _find_column(reader.fieldnames, "datum", "date")
-    # "protiúčtu" = counterparty name in Česká spořitelna exports.
-    name_col = _find_column(reader.fieldnames, "protiúč", "protiuc", "description", "name", "memo")
-    amount_col = _find_column(reader.fieldnames, "částka", "castka", "amount", "debit")
+    date_col = _find_date_column(reader.fieldnames)
+    amount_col = _find_column(reader.fieldnames, *_AMOUNT_KEYWORDS)
+    debit_col = _find_column(reader.fieldnames, *_DEBIT_KEYWORDS) if not amount_col else None
+    credit_col = _find_column(reader.fieldnames, *_CREDIT_KEYWORDS) if not amount_col else None
+    name_cols = _find_name_columns(reader.fieldnames)
 
-    if not (date_col and amount_col):
+    if not date_col or not (amount_col or debit_col or credit_col):
         return []
 
     transactions = []
     for row in reader:
-        raw_amount = (row.get(amount_col) or "").strip()
-        signed = _parse_amount(raw_amount)
+        signed = _row_amount(row, amount_col, debit_col, credit_col)
         if signed is None or signed == 0:
             continue
 
@@ -114,11 +290,11 @@ def parse_csv_statement(raw: bytes) -> list[dict]:
         if not date_iso:
             continue
 
-        name = (row.get(name_col) or "").strip() if name_col else ""
-        if not name:
-            name = "Bank transaction"
-
-        transactions.append({"name": name, "amount": signed, "date": date_iso})
+        transactions.append({
+            "name": _row_name(row, name_cols),
+            "amount": signed,
+            "date": date_iso,
+        })
     return transactions
 
 
