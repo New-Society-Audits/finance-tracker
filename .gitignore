@@ -13,9 +13,6 @@ __pycache__/
 .env.*
 !.env.example
 
-# Uploaded files (bank statements)
-uploads/
-
 # Bank statement exports (contain personal transactions)
 *.csv
 
